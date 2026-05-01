@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+  --font-serif: "Inter", sans-serif;
+
+  --color-primary: #C42040; /* Logo Crimson */
+  --color-on-primary: #ffffff;
+  
+  --color-surface: #F9F9F7; /* Warm Off-White / Apple Background */
+  --color-on-surface: #1C1C1E; /* Apple Charcoal */
+  --color-surface-bright: #FFFFFF;
+  --color-surface-dim: #F2F2F7;
+  --color-surface-variant: #F2F2F7;
+  --color-on-surface-variant: #8E8E93; /* Apple Gray */
+  
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #FFFFFF;
+  --color-surface-container: #F9F9F7;
+  --color-surface-container-high: #EBEBEB;
+  --color-surface-container-highest: #D1D1D6;
+
+  --color-outline: #D1D1D6;
+  --color-outline-variant: #E5E5EA;
+  
+  --color-secondary: #FF9F0A; /* Orange */
+  --color-on-secondary: #ffffff;
+  
+  --color-tertiary: #007AFF; /* Blue */
+  --color-on-tertiary: #ffffff;
+
+  --color-dusty-rose: #C07078;
+  --color-charcoal: #1C1C1E;
+  --color-gold: #FF9F0A;
+  --color-sky-blue: #007AFF;
+  
+  --radius-lg: 1.25rem;
+  --radius-xl: 32px;
+}
+
+@layer base {
+  body {
+    @apply text-on-surface font-body selection:bg-primary/20;
+    background: linear-gradient(150deg, #fefcfc 0%, #fdf5f4 55%, #fefcfc 100%);
+    min-height: max(884px, 100dvh);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  /* Apple Soft Shadow */
+  .apple-shadow {
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04), 0 5px 15px -5px rgba(0, 0, 0, 0.02);
+  }
+  
+  /* Luxury Shadow for deep items */
+  .luxury-shadow {
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.08), 0 10px 20px -10px rgba(0, 0, 0, 0.04);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* ── Shared design tokens ─────────────────────────────────────────── */
+
+  /* Micro field label — used everywhere above inputs/selects */
+  .label-micro {
+    @apply block text-[10px] font-black uppercase tracking-widest text-charcoal/40 mb-2;
+  }
+
+  /* Toggle chip states — active/inactive look the same throughout the app */
+  .chip {
+    @apply py-3 px-3 rounded-2xl text-[10px] font-black uppercase tracking-wide transition-all border cursor-pointer;
+  }
+  .chip-on  { @apply bg-charcoal text-white border-charcoal; }
+  .chip-off { @apply bg-white border-black/[0.06] text-charcoal/40 hover:border-charcoal/20; }
+
+  /* Standard surface card */
+  .card-surface {
+    @apply bg-white rounded-[24px] border border-outline-variant/10 shadow-sm;
+  }
+
+  /* Standard text input / select */
+  .field-input {
+    @apply w-full bg-white px-4 py-3 rounded-2xl border border-black/[0.06] text-[13px] font-medium text-charcoal focus:outline-none focus:border-charcoal/30 transition-colors placeholder:text-charcoal/25;
+  }
+
+  /* Full-width primary CTA */
+  .btn-primary {
+    @apply w-full bg-charcoal text-white font-black text-[11px] uppercase tracking-[0.25em] rounded-[24px] py-4 active:scale-[0.98] transition-all hover:bg-black cursor-pointer;
+  }
+
+  /* Full-width secondary / cancel */
+  .btn-secondary {
+    @apply w-full bg-stone-100 text-charcoal/50 font-bold text-[11px] uppercase tracking-[0.2em] rounded-[24px] py-4 active:scale-[0.98] transition-all hover:bg-stone-200 cursor-pointer;
+  }
+
+  /* Inline text destructive action */
+  .btn-destructive {
+    @apply text-charcoal/30 hover:text-red-400 transition-colors font-semibold text-[11px] uppercase tracking-widest cursor-pointer;
+  }
+}

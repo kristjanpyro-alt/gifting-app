@@ -1,0 +1,6 @@
+{
+  "name": "GIFTIN",
+  "description": "Never forget an important gift again. GIFTIN remembers so you can just show up.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["Gift Tracking", "Intelligent Reminders"]
+}
