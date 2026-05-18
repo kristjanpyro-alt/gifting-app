@@ -237,25 +237,25 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
             </h1>
             
             <p className="text-charcoal/40 text-base md:text-lg mb-16 leading-relaxed">
-              The app that remembers<br />so you can just show up.
+              Remember less.<br />Give more.
             </p>
             
             <div className="w-full space-y-4 max-w-xs mx-auto">
-              <button 
+              <button
                 onClick={handleNext}
-                className="w-full py-4.5 bg-transparent border border-charcoal/20 rounded-2xl font-bold text-charcoal active:scale-[0.98] transition-all hover:bg-charcoal/5"
+                className="w-full py-4.5 bg-charcoal text-white rounded-2xl font-bold shadow-lg shadow-charcoal/15 active:scale-[0.98] transition-all hover:bg-charcoal/90"
               >
                 Get started
               </button>
-              <button 
+              <button
                 onClick={() => alert("Authentication (Google & Apple) is currently being integrated. Please use 'Get started' to set up your local archive for now.")}
                 className="w-full py-4 text-charcoal/40 font-bold hover:text-charcoal/60 transition-colors"
               >
                 I already have an account
               </button>
-              <button 
+              <button
                 onClick={onSkip}
-                className="w-full py-2 text-charcoal/30 font-bold text-xs uppercase tracking-widest hover:text-charcoal/40 transition-colors"
+                className="w-full py-2 text-charcoal/40 font-bold text-xs uppercase tracking-widest hover:text-charcoal/50 transition-colors"
               >
                 Skip Onboarding
               </button>
@@ -279,36 +279,36 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
             <div className="space-y-12">
               <div>
                 <h2 className="text-[32px] font-headline font-bold mb-6 leading-tight text-charcoal">Gift giving,<br />simplified.</h2>
-                <p className="text-charcoal/60 text-base leading-relaxed mb-8">
+                <p className="text-[#6B6B70] text-base leading-relaxed mb-8">
                   Finding the perfect gift shouldn't feel like a chore. The mental load of "what to get" ends here.
                 </p>
               </div>
 
               <div className="space-y-8">
-                <div className="flex gap-4 p-5 bg-surface-container-low rounded-[28px] border border-outline-variant/10">
+                <div className="flex gap-4 p-5 bg-white rounded-[28px] border border-outline-variant/10 shadow-sm">
                   <div className="w-10 h-10 rounded-full bg-dusty-rose/10 flex items-center justify-center shrink-0">
                     <Sparkles className="w-5 h-5 text-dusty-rose" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm mb-1">Our Solution</h4>
-                    <p className="text-xs text-charcoal/40 leading-relaxed">GIFTIN automates the thinking part. We provide the nudge and the perfect idea, tailored specifically to them.</p>
+                    <h4 className="font-bold text-sm mb-1 text-charcoal">Our Solution</h4>
+                    <p className="text-xs text-[#6B6B70] leading-relaxed">GIFTIN automates the thinking part. We provide the nudge and the perfect idea, tailored specifically to them.</p>
                   </div>
                 </div>
 
-                <div className="flex gap-4 p-5 bg-surface-container-low rounded-[28px] border border-outline-variant/10">
+                <div className="flex gap-4 p-5 bg-white rounded-[28px] border border-outline-variant/10 shadow-sm">
                   <div className="w-10 h-10 rounded-full bg-tertiary/10 flex items-center justify-center shrink-0">
                     <Check className="w-5 h-5 text-tertiary" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm mb-1">How it works</h4>
-                    <p className="text-xs text-charcoal/40 leading-relaxed">We need just a few details about your Inner Circle. We'll turn that into a calibrated reminder system and a personalized gift catalog.</p>
+                    <h4 className="font-bold text-sm mb-1 text-charcoal">How it works</h4>
+                    <p className="text-xs text-[#6B6B70] leading-relaxed">We need just a few details about your Inner Circle. We'll turn that into a calibrated reminder system and a personalized gift catalog.</p>
                   </div>
                 </div>
               </div>
 
               <div className="pt-8">
-                <p className="text-[10px] text-charcoal/30 font-bold uppercase tracking-[0.05em] text-center mb-6">
-                   Your data stays private & strictly local.
+                <p className="text-[10px] text-charcoal/45 font-bold uppercase tracking-[0.05em] text-center mb-6">
+                  🔒 Your data stays private & strictly local.
                 </p>
                 <button 
                   onClick={handleNext}

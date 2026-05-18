@@ -375,14 +375,17 @@ export default function HomeView({
     })
     .slice(0, 6);
 
-  // Spotlight: first future event, fallback to most-recent past
-  const futureThisMonth = thisMonth.filter((o: any) => o.daysRemaining >= 0);
-  const pastThisMonth   = thisMonth.filter((o: any) => o.daysRemaining < 0);
+  // Split this month into linked (personal + matched system) vs unlinked system
+  const linkedThisMonth   = thisMonth.filter((o: any) => !o.isSystem || !!matchPersonToHoliday(o.title, people));
+  const unlinkedThisMonth = thisMonth.filter((o: any) =>  o.isSystem && !matchPersonToHoliday(o.title, people));
 
-  const spotlight  = futureThisMonth[0] ?? pastThisMonth[0] ?? null;
-  /** Other occasions in the viewed month — shown as full spotlight cards like the first */
+  // Spotlight: first future linked event, fallback to most-recent past linked
+  const futureLinked = linkedThisMonth.filter((o: any) => o.daysRemaining >= 0);
+  const pastLinked   = linkedThisMonth.filter((o: any) => o.daysRemaining < 0);
+
+  const spotlight  = futureLinked[0] ?? pastLinked[0] ?? null;
   const restEvents = spotlight
-    ? thisMonth.filter((o: any) => o.id !== spotlight.id)
+    ? linkedThisMonth.filter((o: any) => o.id !== spotlight.id)
     : [];
 
   const laterStrip = [
@@ -390,7 +393,11 @@ export default function HomeView({
     ...month2.map((o: any) => ({ occ: o, yr: month2Year })),
   ];
 
-  const laterStripVisible = showAll ? laterStrip : laterStrip.slice(0, 6);
+  const linkedLaterStrip   = laterStrip.filter(({ occ }) => !occ.isSystem || !!matchPersonToHoliday(occ.title, people));
+  const unlinkedLaterStrip = laterStrip.filter(({ occ }) =>  occ.isSystem && !matchPersonToHoliday(occ.title, people));
+
+  const laterStripVisible         = showAll ? linkedLaterStrip   : linkedLaterStrip.slice(0, 6);
+  const unlinkedLaterStripVisible = showAll ? unlinkedLaterStrip : unlinkedLaterStrip.slice(0, 4);
 
   return (
     <div className="pt-6 px-5 max-w-lg mx-auto pb-32 animate-in fade-in duration-500 relative">
@@ -493,7 +500,7 @@ export default function HomeView({
           <div className="w-2 h-2 rounded-full bg-primary" />
           <p className="text-[15px] font-bold text-charcoal">Upcoming</p>
         </div>
-        {laterStrip.length > 6 && (
+        {linkedLaterStrip.length > 6 && (
           <button
             onClick={() => setShowAll(p => !p)}
             className="flex items-center gap-1 text-[12px] font-semibold text-primary cursor-pointer hover:opacity-70 transition-opacity"
@@ -551,10 +558,10 @@ export default function HomeView({
         </div>
       )}
 
-      {/* ── Next months (compact strip — farther out than the calendar month above) ── */}
-      {laterStrip.length > 0 && (
+      {/* ── Next months (linked events) ── */}
+      {laterStripVisible.length > 0 && (
         <div className="mb-6">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-charcoal/35 mb-2.5 px-1">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-charcoal/50 mb-2.5 px-1">
             Coming later
           </p>
           <div className="bg-white rounded-[24px] border border-outline-variant/10 shadow-[0_4px_20px_rgba(196,32,64,0.07),0_1px_5px_rgba(0,0,0,0.04)] overflow-hidden">
@@ -572,7 +579,7 @@ export default function HomeView({
                   />
                 );
               })}
-              {laterStrip.length > 6 && (
+              {linkedLaterStrip.length > 6 && (
                 <button
                   onClick={() => setShowAll(p => !p)}
                   className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-dim flex items-center justify-center shadow-sm active:scale-90 transition-transform cursor-pointer hover:bg-outline-variant/20"
@@ -589,7 +596,28 @@ export default function HomeView({
         </div>
       )}
 
-      {thisMonth.length === 0 && nextMonth.length === 0 && month2.length === 0 && (
+      {/* ── No profile — unlinked system holidays ── */}
+      {(unlinkedThisMonth.length > 0 || unlinkedLaterStripVisible.length > 0) && (
+        <div className="mb-6">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-charcoal/35 mb-2.5 px-1">
+            No profile linked
+          </p>
+          <div className="space-y-2.5">
+            {[...unlinkedThisMonth, ...unlinkedLaterStripVisible.map(({ occ }) => occ)].map((occ: any) => (
+              <SpotlightCard
+                key={occ.id}
+                occ={occ}
+                person={undefined}
+                year={year}
+                wobbleTick={wobbleTickFor(occ.id)}
+                onClick={() => activateOccasion(occ)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {linkedThisMonth.length === 0 && linkedLaterStrip.length === 0 && unlinkedThisMonth.length === 0 && unlinkedLaterStripVisible.length === 0 && (
         <div className="py-16 text-center">
           <p className="text-[11px] font-semibold text-charcoal/25 uppercase tracking-widest">Nothing coming up soon</p>
         </div>
