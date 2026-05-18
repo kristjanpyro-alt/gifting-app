@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
   ChevronRight,
+  ChevronLeft,
   ExternalLink,
   Sparkles,
   Loader2,
@@ -25,7 +26,6 @@ import {
   batchesForGiftEvent,
   latestIdeasForGiftEvent,
 } from '../utils/giftEventOptions';
-import { isIdeaSearchLockedForOccasion } from '../utils/giftGenerationPhase';
 
 function ideaOneLiner(i: GiftIdea): string {
   const d = (i.description || "").replace(/\s+/g, " ").trim().slice(0, 160);
@@ -76,6 +76,8 @@ interface IdeasViewProps {
   onSelectPerson: (id: string) => void;
   /** Opens add-person flow (e.g. dashed ADD chip on profile strip) */
   onRequestAddPerson?: () => void;
+  /** Pre-select a specific personal occasion by ID when navigating from ProfileView. */
+  initialOccasionId?: string | null;
 }
 
 function EventCalTile({
@@ -302,6 +304,7 @@ export default function IdeasView({
   onRecordIdeaGeneration,
   onSelectPerson,
   onRequestAddPerson,
+  initialOccasionId,
 }: IdeasViewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(personId || (people.length > 0 ? people[0].id : null));
   /** Increments when this profile is newly picked -- drives one full emoji "roll" */
@@ -412,13 +415,22 @@ export default function IdeasView({
 
   useEffect(() => {
     appliedNavFocusRef.current = false;
-  }, [selectedId]);
+  }, [selectedId, initialOccasionId]);
 
   useEffect(() => {
     if (!person) return;
     if (giftEventOptions.length === 0) {
       setSelectedEventKey(null);
       return;
+    }
+    // Pre-select a specific personal occasion navigated from ProfileView
+    if (initialOccasionId && !appliedNavFocusRef.current) {
+      const targetKey = `p:${initialOccasionId}`;
+      if (giftEventOptions.some((o) => o.key === targetKey)) {
+        setSelectedEventKey(targetKey);
+        appliedNavFocusRef.current = true;
+        return;
+      }
     }
     if (occasionFocus && occasionFocus.personId === person.id && !appliedNavFocusRef.current) {
       const y = parseInt(occasionFocus.date.split("-")[0], 10);
@@ -434,7 +446,7 @@ export default function IdeasView({
     setSelectedEventKey((prev) =>
       prev && giftEventOptions.some((o) => o.key === prev) ? prev : giftEventOptions[0].key
     );
-  }, [person?.id, giftEventOptions, occasionFocus]);
+  }, [person?.id, giftEventOptions, occasionFocus, initialOccasionId]);
 
   useEffect(() => {
     if (!person) {
@@ -452,7 +464,6 @@ export default function IdeasView({
 
   const handleGenerateIdeas = async () => {
     if (!person || !selectedEventKey) return;
-    if (isIdeaSearchLockedForOccasion(person, selectedEventKey)) return;
     const { seenIdeaTitles, seenIdeaBriefs } = collectSeenForEvent(person, generatedIdeas, selectedEventKey);
     const crossOccasionBriefs = collectCrossOccasionBriefs(person, selectedEventKey);
     const lovedTitles = (person.savedGifts || []).map((g) => g.title.trim()).filter(Boolean);
@@ -555,9 +566,9 @@ export default function IdeasView({
 
   if (!person) return null;
 
-  const generateLocked = isIdeaSearchLockedForOccasion(person, selectedEventKey);
-  const unlockedSearchBlurb = "We'll match their style and budget — tap below to search.";
-  const lockedSearchHelp = "Add this occasion to unlock gift ideas.";
+  const searchBlurb = !selectedEventKey
+    ? "Select an occasion above to unlock tailored gift ideas."
+    : "We'll match their style and budget — tap below to search.";
   const firstName = person.name.split(' ')[0];
 
   return (
@@ -836,13 +847,12 @@ export default function IdeasView({
                   What should you get {person.name.split(' ')[0]}?
                 </h3>
                 <p className="text-[13px] text-charcoal/50 max-w-[260px] mt-2 leading-relaxed">
-                  {generateLocked ? lockedSearchHelp : unlockedSearchBlurb}
+                  {searchBlurb}
                 </p>
               </div>
               <button
                 type="button"
-                disabled={isGenerating || !selectedEventKey || generateLocked}
-                title={generateLocked ? lockedSearchHelp : undefined}
+                disabled={isGenerating || !selectedEventKey}
                 onClick={handleGenerateIdeas}
                 className="w-full max-w-xs px-8 py-4 bg-charcoal text-white rounded-full font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
@@ -1018,15 +1028,40 @@ export default function IdeasView({
             {allSuggestions.length > 0 ? (
               <div className="space-y-8">
                 {viewMode === 'single' ? (
-                  <SuggestionCard
-                    suggestion={allSuggestions[activeIndex]}
-                    person={person}
-                    onSave={handleSaveGift}
-                    isLiked={likedIds.has(allSuggestions[activeIndex]?.id ?? '')}
-                    isDisliked={dislikedIds.has(allSuggestions[activeIndex]?.id ?? '')}
-                    onLike={() => toggleLike(allSuggestions[activeIndex]?.id ?? '', allSuggestions[activeIndex])}
-                    onDislike={() => toggleDislike(allSuggestions[activeIndex])}
-                  />
+                  <div>
+                    <SuggestionCard
+                      suggestion={allSuggestions[activeIndex]}
+                      person={person}
+                      onSave={handleSaveGift}
+                      isLiked={likedIds.has(allSuggestions[activeIndex]?.id ?? '')}
+                      isDisliked={dislikedIds.has(allSuggestions[activeIndex]?.id ?? '')}
+                      onLike={() => toggleLike(allSuggestions[activeIndex]?.id ?? '', allSuggestions[activeIndex])}
+                      onDislike={() => toggleDislike(allSuggestions[activeIndex])}
+                    />
+                    {allSuggestions.length > 1 && (
+                      <div className="flex items-center justify-center gap-4 mt-5">
+                        <button
+                          type="button"
+                          onClick={() => setActiveIndex(i => Math.max(0, i - 1))}
+                          disabled={activeIndex === 0}
+                          className="w-10 h-10 rounded-full bg-white border border-black/[0.06] flex items-center justify-center shadow-sm disabled:opacity-25 hover:bg-stone-50 transition-all active:scale-95 cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-charcoal/60" strokeWidth={2.5} />
+                        </button>
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-charcoal/35 tabular-nums">
+                          {activeIndex + 1} / {allSuggestions.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveIndex(i => Math.min(allSuggestions.length - 1, i + 1))}
+                          disabled={activeIndex === allSuggestions.length - 1}
+                          className="w-10 h-10 rounded-full bg-white border border-black/[0.06] flex items-center justify-center shadow-sm disabled:opacity-25 hover:bg-stone-50 transition-all active:scale-95 cursor-pointer"
+                        >
+                          <ChevronRight className="w-4 h-4 text-charcoal/60" strokeWidth={2.5} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   allSuggestions.map((suggestion) => (
                     <SuggestionCard
@@ -1079,6 +1114,17 @@ export default function IdeasView({
                   </p>
                 </>
               )}
+              <button
+                type="button"
+                disabled={isGenerating || !selectedEventKey}
+                onClick={handleGenerateIdeas}
+                className="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-primary/25 text-[11px] font-bold uppercase tracking-widest text-primary hover:bg-primary/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isGenerating
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <RefreshCw className="w-3.5 h-3.5" />}
+                {isGenerating ? 'Looking…' : 'Find new ideas'}
+              </button>
             </div>
           </section>
         )}

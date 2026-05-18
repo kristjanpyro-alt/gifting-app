@@ -59,7 +59,7 @@ interface ProfileViewProps {
   onDeletePerson: (id: string) => void;
   onDeleteOccasion: (id: string) => void;
   onAddOccasion: (occasion: Occasion) => void;
-  onViewIdeas: (id: string) => void;
+  onViewIdeas: (personId: string, occasionId?: string) => void;
   notificationTimings?: number[];
   onEditReminderSettings?: () => void;
 }
@@ -263,8 +263,9 @@ export default function ProfileView({
   const [editPreferences, setEditPreferences] = useState<'Physical gifts' | 'Experiences' | 'Either'>(person?.preferences || 'Either');
   const [editLocation, setEditLocation] = useState(person?.location || '');
   const [editStyle, setEditStyle] = useState(person?.style || 'Thoughtful');
-  const [editFallenFlat, setEditFallenFlat] = useState(person?.fallenFlatKeywords?.join(', ') || '');
-  const [editPastGifts, setEditPastGifts] = useState(person?.pastGifts?.join(', ') || '');
+  const [editPastAndAvoid, setEditPastAndAvoid] = useState(
+    [...(person?.pastGifts || []), ...(person?.fallenFlatKeywords || [])].join(', ')
+  );
   const [editColor, setEditColor] = useState(person?.themeColor || '#C42040');
   const [editEmoji, setEditEmoji] = useState(person?.emoji || '💖');
   const [editNotes, setEditNotes] = useState(person?.notes || '');
@@ -282,8 +283,8 @@ export default function ProfileView({
       interests: editInterests.split(',').map(i => i.trim()).filter(Boolean),
       birthday: editBirthday, anniversaryDate: editAnniversaryDate,
       preferences: editPreferences, location: editLocation, style: editStyle,
-      fallenFlatKeywords: editFallenFlat.split(',').map(i => i.trim()).filter(Boolean),
-      pastGifts: editPastGifts.split(',').map(i => i.trim()).filter(Boolean),
+      pastGifts: editPastAndAvoid.split(',').map(i => i.trim()).filter(Boolean),
+      fallenFlatKeywords: [],
       notes: editNotes,
       initials: editName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
       themeColor: editColor, emoji: editEmoji,
@@ -509,7 +510,10 @@ export default function ProfileView({
         {activeTab === 'saved' && (
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-[17px] font-bold text-charcoal tracking-tight">Saved Ideas</p>
+              <div>
+                <p className="text-[17px] font-bold text-charcoal tracking-tight">Saved Ideas</p>
+                <p className="text-[11px] text-charcoal/35 mt-0.5">Hearted from the Ideas tab</p>
+              </div>
               <span className="text-[11px] font-semibold text-charcoal/30">{savedIdeas.length} items</span>
             </div>
 
@@ -589,7 +593,11 @@ export default function ProfileView({
                   {sortedOccasions.map((occ, idx) => (
                     <div key={occ.id}>
                       {idx > 0 && <div className="mx-4 h-px bg-black/[0.04]" />}
-                      <div className="flex items-center gap-3 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => onViewIdeas(person.id, occ.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50/70 active:bg-stone-100/60 transition-colors cursor-pointer"
+                      >
                         <EventIcon type={occ.type} color={themeColor} />
                         <div className="flex-grow min-w-0">
                           <p className="text-[13px] font-bold text-charcoal tracking-tight">{occ.type}</p>
@@ -602,13 +610,19 @@ export default function ProfileView({
                             </p>
                           )}
                         </div>
-                        <button
-                          onClick={() => onDeleteOccasion(occ.id)}
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-charcoal/15 hover:bg-red-50 hover:text-red-400 transition-all cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: themeColor }}>
+                            Ideas
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onDeleteOccasion(occ.id); }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-charcoal/15 hover:bg-red-50 hover:text-red-400 transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -699,6 +713,7 @@ export default function ProfileView({
                         label="Date"
                         value={newEventDate}
                         onChange={setNewEventDate}
+                        defaultYear={new Date().getFullYear()}
                       />
                     )}
 
@@ -793,11 +808,11 @@ export default function ProfileView({
                   />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <WheelDatePicker label="Birthday" value={editBirthday} onChange={setEditBirthday} />
+                  <WheelDatePicker label="Birthday" value={editBirthday} onChange={setEditBirthday} defaultYear={new Date().getFullYear() - 30} />
                 </div>
                 {isPartnerRelation(editRelation) && (
                   <div className="col-span-2 sm:col-span-1">
-                    <WheelDatePicker label="Anniversary" value={editAnniversaryDate} onChange={setEditAnniversaryDate} />
+                    <WheelDatePicker label="Anniversary" value={editAnniversaryDate} onChange={setEditAnniversaryDate} defaultYear={new Date().getFullYear()} />
                   </div>
                 )}
               </div>
@@ -808,9 +823,9 @@ export default function ProfileView({
               </div>
             </section>
 
-            {/* Gift Preferences */}
+            {/* AI Gift Profile */}
             <section className="space-y-4">
-              <p className="text-[17px] font-bold text-charcoal tracking-tight">Gift Preferences</p>
+              <p className="text-[17px] font-bold text-charcoal tracking-tight">AI Gift Profile</p>
               <div><label className={labelCls}>Interests</label><textarea value={editInterests} onChange={e => setEditInterests(e.target.value)} className={`${inputCls} min-h-[80px] resize-none`} placeholder="Gaming, cooking, hiking..." /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -845,13 +860,15 @@ export default function ProfileView({
                   ))}
                 </div>
               </div>
-              <div><label className={labelCls}>What's fallen flat before</label><input value={editFallenFlat} onChange={e => setEditFallenFlat(e.target.value)} className={inputCls} placeholder="e.g. scented candles, socks..." /></div>
-            </section>
-
-            {/* Memory */}
-            <section className="space-y-4">
-              <p className="text-[17px] font-bold text-charcoal tracking-tight">Memory</p>
-              <div><label className={labelCls}>Past gifts that landed well</label><textarea value={editPastGifts} onChange={e => setEditPastGifts(e.target.value)} className={`${inputCls} min-h-[80px] resize-none`} placeholder="e.g. book on photography, silk scarf..." /></div>
+              <div>
+                <label className={labelCls}>Past gifts & things to avoid</label>
+                <textarea
+                  value={editPastAndAvoid}
+                  onChange={e => setEditPastAndAvoid(e.target.value)}
+                  className={`${inputCls} min-h-[88px] resize-none`}
+                  placeholder="e.g. silk scarf last year, candles, anything generic…"
+                />
+              </div>
               <div><label className={labelCls}>Notes & observations</label><textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} className={`${inputCls} min-h-[100px] resize-none`} placeholder="Anything useful to remember about them..." /></div>
             </section>
 

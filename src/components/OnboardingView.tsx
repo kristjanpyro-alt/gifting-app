@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Sparkles, Check, ArrowRight, ArrowLeft, ChevronRight } from 'lucide-react';
+import { MapPin, Sparkles, Check, ArrowRight, ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Person, Occasion } from '../types';
 import WheelDatePicker from './WheelDatePicker';
 import CustomSelect from './CustomSelect';
@@ -33,7 +33,6 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
   const [questionsData, setQuestionsData] = useState({
     style: '',
     fear: '',
-    method: ''
   });
   
   const [personData, setPersonData] = useState({
@@ -41,8 +40,8 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
     relation: 'Partner / Spouse',
     birthday: '',
     interests: '',
-    notWorked: '',
-    preferences: 'Either', // Physical, Experiences, Either
+    fallenFlat: '',
+    preferences: 'Either' as 'Physical gifts' | 'Experiences' | 'Either',
     budget: '€25-50',
     anniversaryDate: '',
     color: '#C42040',
@@ -55,6 +54,7 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
   const [userCity, setUserCity] = useState('');
   const [showCityInput, setShowCityInput] = useState(false);
   const [manualCityValue, setManualCityValue] = useState('');
+  const [isDetecting, setIsDetecting] = useState(false);
 
   const PRESET_DATA: Record<string, { date?: string, emoji: string }> = {
     'Birthday': { emoji: '🎂' },
@@ -125,16 +125,23 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
       budget: personData.budget,
       style: questionsData.style || 'Flexible',
       avatarUrl: '',
-      notes: personData.notWorked ? `Previously didn't work: ${personData.notWorked}` : '',
+      notes: '',
       lastNoteUpdate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase(),
       savedGifts: [],
       themeColor: personData.color,
       emoji: personData.emoji,
       birthday: personData.birthday || undefined,
       anniversaryDate: personData.anniversaryDate || undefined,
+      preferences: personData.preferences,
+      giftingFear: questionsData.fear || undefined,
+      fallenFlatKeywords: personData.fallenFlat
+        ? personData.fallenFlat.split(',').map(i => i.trim()).filter(Boolean)
+        : undefined,
     };
 
-    const combinedOccasions = [...selectedOccasions];
+    const combinedOccasions = [...selectedOccasions].filter(
+      (type) => type !== 'Birthday' || !!personData.birthday
+    );
     if (customOccasion.trim()) {
       combinedOccasions.push(customOccasion.trim());
     }
@@ -490,7 +497,7 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
             </div>
 
             <h2 className="text-[32px] font-headline font-bold mb-3 leading-tight tracking-tight">Timeline</h2>
-            <p className="text-charcoal/60 mb-10 text-sm">When do the celebrations start? We'll notify you 3 weeks in advance.</p>
+            <p className="text-charcoal/60 mb-10 text-sm">When do the celebrations start? We'll remind you based on how early you like to shop.</p>
 
               <div className="space-y-10">
               <div className="space-y-3">
@@ -498,6 +505,7 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
                   label={`${personData.name}'s Birthday`}
                   value={personData.birthday}
                   onChange={v => setPersonData({...personData, birthday: v})}
+                  defaultYear={new Date().getFullYear() - 30}
                 />
               </div>
               
@@ -507,15 +515,15 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
                     label="Your Anniversary"
                     value={personData.anniversaryDate}
                     onChange={v => setPersonData({...personData, anniversaryDate: v})}
+                    defaultYear={new Date().getFullYear()}
                   />
                 </div>
               )}
             </div>
 
-            <button 
+            <button
               onClick={handleNext}
-              disabled={!personData.birthday}
-              className="w-full py-4.5 bg-charcoal text-white rounded-2xl font-bold mt-16 disabled:opacity-20 active:scale-[0.98] transition-all shadow-xl shadow-charcoal/10"
+              className="w-full py-4.5 bg-charcoal text-white rounded-2xl font-bold mt-16 active:scale-[0.98] transition-all shadow-xl shadow-charcoal/10"
             >
               Continue
             </button>
@@ -556,7 +564,7 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-charcoal/40 px-1">Gift Budget Target</label>
                 <div className="grid grid-cols-2 gap-2.5">
                   {BUDGET_OPTIONS.map(opt => (
-                    <button 
+                    <button
                       key={opt}
                       onClick={() => setPersonData({...personData, budget: opt})}
                       className={`py-4 border rounded-[22px] text-sm font-bold transition-all ${personData.budget === opt ? 'bg-charcoal text-white border-charcoal' : 'bg-surface border-outline-variant/30 text-charcoal/60'}`}
@@ -565,6 +573,40 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-charcoal/40 px-1">Gift style</label>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'Physical gifts', label: '🎁 Things' },
+                    { value: 'Experiences', label: '🎟️ Events' },
+                    { value: 'Either', label: '✨ Both' },
+                  ] as { value: 'Physical gifts' | 'Experiences' | 'Either'; label: string }[]).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPersonData({...personData, preferences: opt.value})}
+                      className={`flex-1 py-3 rounded-[22px] text-xs font-bold border transition-all ${personData.preferences === opt.value ? 'bg-charcoal text-white border-charcoal' : 'bg-surface border-outline-variant/30 text-charcoal/60'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-charcoal/40 px-1">
+                  Past gifts & things to avoid
+                  <span className="ml-2 font-semibold normal-case text-charcoal/25">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={personData.fallenFlat}
+                  onChange={e => setPersonData({...personData, fallenFlat: e.target.value})}
+                  placeholder="e.g. candles, silk scarf last year…"
+                  className="w-full px-5 py-4 bg-surface-container/20 border border-outline-variant/10 rounded-[24px] focus:outline-none focus:bg-white transition-all text-sm font-medium text-charcoal placeholder:text-charcoal/25"
+                />
               </div>
             </div>
 
@@ -670,7 +712,41 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
               </div>
 
               <div className="space-y-3 w-full max-w-xs mx-auto">
-                <button onClick={() => { setUserCity('Tallinn'); handleNext(); }} className="w-full py-4 bg-charcoal text-white rounded-2xl font-bold shadow-xl">Detect Location</button>
+                <button
+                  disabled={isDetecting}
+                  onClick={() => {
+                    setIsDetecting(true);
+                    navigator.geolocation.getCurrentPosition(
+                      async (pos) => {
+                        try {
+                          const { latitude, longitude } = pos.coords;
+                          const res = await fetch(
+                            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+                            { headers: { 'Accept-Language': 'en' } }
+                          );
+                          const data = await res.json();
+                          const city = data.address?.city || data.address?.town || data.address?.village || '';
+                          const country = data.address?.country || '';
+                          setUserCity(city ? `${city}, ${country}` : country);
+                          setIsDetecting(false);
+                          handleNext();
+                        } catch {
+                          setIsDetecting(false);
+                          setShowCityInput(true);
+                        }
+                      },
+                      () => {
+                        setIsDetecting(false);
+                        setShowCityInput(true);
+                      }
+                    );
+                  }}
+                  className="w-full py-4 bg-charcoal text-white rounded-2xl font-bold shadow-xl disabled:opacity-60 flex items-center justify-center gap-2 transition-opacity"
+                >
+                  {isDetecting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Detecting…</>
+                  ) : 'Detect Location'}
+                </button>
 
                 {showCityInput ? (
                   <div className="space-y-2">
@@ -835,8 +911,8 @@ export default function OnboardingView({ onComplete, onSkip }: OnboardingViewPro
             
             <h2 className="text-[36px] font-headline font-bold mb-4 leading-tight tracking-tighter">Profile Sealed.</h2>
             <p className="text-charcoal/60 mb-12 text-base leading-relaxed max-w-xs">
-              {personData.name}'s first occasion is tracked.<br />
-              <span className="font-semibold text-charcoal/80 italic text-balance">We've already curated initial ideas for you.</span>
+              {personData.name}'s profile is sealed.<br />
+              <span className="font-semibold text-charcoal/80 italic text-balance">Head to Ideas to generate your first gift suggestions.</span>
             </p>
 
             <div className="w-full p-6 border border-outline-variant/20 rounded-[36px] bg-white flex items-center justify-between mb-20 shadow-2xl border-b-[4px] border-b-charcoal/10">

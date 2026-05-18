@@ -20,6 +20,8 @@ export interface Person {
   pastGifts?: string[];
   /** Titles the user explicitly marked "Not quite" — feeds back to AI for steering. */
   dislikedGiftTitles?: string[];
+  /** Giver's primary gifting anxiety — steers AI away from that failure mode. */
+  giftingFear?: string;
   generatedIdeas?: GiftIdea[];
   generationHistory?: {
     /** Stable key for list UI (multiple runs in one ms). */

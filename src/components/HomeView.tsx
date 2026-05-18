@@ -77,7 +77,7 @@ function buildMerged(occasions: Occasion[], year: number, today: Date) {
     const [, sm, sd] = s.date.split('-').map(Number);
     const exists = occasions.some(u => {
       const [, um, ud] = u.date.split('-').map(Number);
-      return um === sm && ud === sd;
+      return um === sm && ud === sd && u.type.toLowerCase() === s.title.toLowerCase();
     });
     if (!exists) result.push(s);
   });

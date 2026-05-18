@@ -55,6 +55,7 @@ export default function App() {
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [notificationTimings, setNotificationTimings] = useState<number[]>([7]);
   const [limitToast, setLimitToast] = useState<string | null>(null);
+  const [ideasInitialOccasionId, setIdeasInitialOccasionId] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -351,9 +352,10 @@ export default function App() {
           <ProfileView
             personId={selectedPersonId}
             onBack={() => setCurrentView("people")}
-            onViewIdeas={(id) => {
+            onViewIdeas={(id, occasionId) => {
               setSelectedPersonId(id);
               setIdeasOccasionFocus(null);
+              setIdeasInitialOccasionId(occasionId ?? null);
               setCurrentView("ideas");
             }}
             people={people}
@@ -371,10 +373,12 @@ export default function App() {
           <IdeasView
             onBack={() => {
               setIdeasOccasionFocus(null);
+              setIdeasInitialOccasionId(null);
               setCurrentView("people");
             }}
             personId={selectedPersonId}
             occasionFocus={ideasOccasionFocus}
+            initialOccasionId={ideasInitialOccasionId}
             people={people}
             occasions={occasions}
             onUpdatePerson={handleUpdatePerson}

@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, CalendarDays, MessageSquare, Sparkles, ChevronRight, Gift } from "lucide-react";
+import { X, CalendarDays, MessageSquare, Sparkles, ChevronRight, Gift, Tag } from "lucide-react";
 import { Occasion, Person } from "../types";
 import {
   MILESTONE_TYPES,
@@ -224,6 +224,15 @@ export default function MilestoneModal({
                   />
                 </div>
 
+                {milestonePersonId === '' && (
+                  <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200/70 rounded-2xl">
+                    <span className="text-base leading-none mt-0.5">⚠️</span>
+                    <p className="text-[12px] text-amber-800/80 leading-snug">
+                      Without a linked profile, gift ideas won't be available for this event. Link a person above to enable AI suggestions.
+                    </p>
+                  </div>
+                )}
+
                 {/* ── 3. Add the details ── */}
                 <div>
                   <p className="text-[14px] font-bold text-charcoal mb-3">3. Add the details</p>
@@ -235,7 +244,7 @@ export default function MilestoneModal({
                         Date
                       </label>
                       <div className="bg-rose-50/50 rounded-2xl border border-rose-100/50 overflow-hidden">
-                        <WheelDatePicker value={milestoneDate} onChange={setMilestoneDate} />
+                        <WheelDatePicker value={milestoneDate} onChange={setMilestoneDate} defaultYear={new Date().getFullYear()} />
                       </div>
                     </div>
 

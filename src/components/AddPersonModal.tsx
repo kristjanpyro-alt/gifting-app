@@ -96,8 +96,8 @@ export default function AddPersonModal({
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState("");
   const [style, setStyle] = useState("Thoughtful");
-  const [fallenFlat, setFallenFlat] = useState("");
-  const [pastGifts, setPastGifts] = useState("");
+  const [giftingFear, setGiftingFear] = useState("");
+  const [pastAndAvoid, setPastAndAvoid] = useState("");
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [emoji, setEmoji] = useState(DEFAULT_EMOJI);
   const [extraOccasions, setExtraOccasions] = useState<string[]>([]);
@@ -161,7 +161,7 @@ export default function AddPersonModal({
     setName(""); setRelation("Partner / Spouse"); setInterests("");
     setBudget("€25-50"); setBirthday(""); setAnniversaryDate("");
     setPreferences("Either"); setNotes(""); setLocation("");
-    setStyle("Thoughtful"); setFallenFlat(""); setPastGifts("");
+    setStyle("Thoughtful"); setGiftingFear(""); setPastAndAvoid("");
     setColor(DEFAULT_COLOR); setEmoji(DEFAULT_EMOJI); setExtraOccasions([]);
     setRelationError(null);
     setBirthdayError(false);
@@ -205,8 +205,9 @@ export default function AddPersonModal({
       anniversaryDate,
       preferences,
       location,
+      giftingFear: giftingFear || undefined,
       fallenFlatKeywords: [],
-      pastGifts: [],
+      pastGifts: pastAndAvoid.split(',').map(i => i.trim()).filter(Boolean),
     };
 
     const occasionsToAdd: Occasion[] = [];
@@ -463,7 +464,7 @@ export default function AddPersonModal({
                             ? 'border-[#DE6573]/35 bg-[#FAFAFA]/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]'
                             : 'border-stone-200/90 bg-[#FAFAFA]/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]'
                       }`}>
-                        <WheelDatePicker value={birthday} onChange={(v) => { setBirthday(v); setBirthdayError(false); }} />
+                        <WheelDatePicker value={birthday} onChange={(v) => { setBirthday(v); setBirthdayError(false); }} defaultYear={new Date().getFullYear() - 30} />
                       </div>
                       {birthdayError && (
                         <p className="text-[11px] text-[#DE6573] mt-1.5 px-1 font-medium">Please add their birthday</p>
@@ -479,7 +480,7 @@ export default function AddPersonModal({
                           <span className="text-[10px] font-normal text-charcoal/30">(optional)</span>
                         </label>
                         <div className="rounded-2xl border border-stone-200/90 bg-[#FAFAFA]/90 overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]">
-                          <WheelDatePicker value={anniversaryDate} onChange={setAnniversaryDate} />
+                          <WheelDatePicker value={anniversaryDate} onChange={setAnniversaryDate} defaultYear={new Date().getFullYear()} />
                         </div>
                       </div>
                     )}
@@ -680,21 +681,68 @@ export default function AddPersonModal({
                   </div>
                 </div>
 
+                {/* ── Gifting fear ── */}
+                <div className="bg-white rounded-[26px] border border-stone-200/70 shadow-[0_8px_30px_rgba(0,0,0,0.05)] overflow-hidden">
+                  <div className="px-5 py-5 space-y-3">
+                    <div>
+                      <label className="text-[11px] font-semibold text-charcoal/45 px-1 block mb-0.5">Your biggest gifting worry</label>
+                      <p className="text-[11px] text-charcoal/35 px-1 mb-3 leading-relaxed">We'll steer ideas away from this failure mode.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        'Giving something generic',
+                        'Forgetting the occasion',
+                        'Going over budget',
+                        'They already have it',
+                      ].map((opt) => (
+                        <button
+                          key={opt} type="button"
+                          onClick={() => setGiftingFear(f => f === opt ? '' : opt)}
+                          className={`py-3 px-3 rounded-2xl text-[11px] font-bold text-left border transition-all ${
+                            giftingFear === opt
+                              ? 'bg-dusty-rose/10 border-dusty-rose text-dusty-rose'
+                              : 'bg-[#FAFAFA] border-stone-200/80 text-charcoal/55 hover:border-charcoal/20'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Past gifts & avoid ── */}
+                <div className="bg-white rounded-[26px] border border-stone-200/70 shadow-[0_8px_30px_rgba(0,0,0,0.05)] overflow-hidden">
+                  <div className="px-5 py-5 space-y-3">
+                    <div>
+                      <label className="text-[11px] font-semibold text-charcoal/45 px-1 block mb-0.5">Past gifts & things to avoid</label>
+                      <p className="text-[11px] text-charcoal/35 px-1 mb-3 leading-relaxed">Comma-separated — we'll never suggest these again.</p>
+                    </div>
+                    <input
+                      type="text"
+                      value={pastAndAvoid}
+                      onChange={(e) => setPastAndAvoid(e.target.value)}
+                      className="w-full bg-[#FAFAFA]/90 rounded-2xl px-4 py-3 text-[14px] text-charcoal focus:outline-none border border-stone-200/90 focus:border-[#DE6573]/35 focus:ring-2 focus:ring-[#DE6573]/10 transition-all placeholder:text-charcoal/28"
+                      placeholder="e.g. silk scarf, candles, generic gadgets…"
+                    />
+                  </div>
+                </div>
+
                 {/* ── Personal notes ── */}
                 <div className="bg-white rounded-[26px] border border-stone-200/70 shadow-[0_8px_30px_rgba(0,0,0,0.05)] overflow-hidden">
                   <div className="px-5 py-5">
                     <label className="text-[11px] font-semibold text-charcoal/45 mb-1.5 flex items-center justify-between px-1">
-                      Anything we should know?
+                      Anything else we should know?
                       <span className={`text-[10px] font-semibold tabular-nums ${notes.length >= 450 ? 'text-amber-500' : 'text-charcoal/25'}`}>{notes.length}/500</span>
                     </label>
                     <p className="text-[11px] text-charcoal/35 mb-3 px-1 leading-relaxed">
-                      Gifts they'd love, hate, things they already own — anything that helps us get it right.
+                      Quirks, allergies, hobbies, anything useful.
                     </p>
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value.slice(0, 500))}
-                      className="w-full bg-[#FAFAFA]/90 rounded-2xl px-4 py-3.5 text-[14px] text-charcoal focus:outline-none border border-stone-200/90 focus:border-[#DE6573]/35 focus:ring-2 focus:ring-[#DE6573]/10 transition-all min-h-[120px] resize-none placeholder:text-charcoal/28 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]"
-                      placeholder="e.g. She loved the silk scarf I got her. Hates candles. Obsessed with anything vintage. Already has too many books…"
+                      className="w-full bg-[#FAFAFA]/90 rounded-2xl px-4 py-3.5 text-[14px] text-charcoal focus:outline-none border border-stone-200/90 focus:border-[#DE6573]/35 focus:ring-2 focus:ring-[#DE6573]/10 transition-all min-h-[100px] resize-none placeholder:text-charcoal/28 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]"
+                      placeholder="e.g. Obsessed with anything vintage. Already has too many books…"
                     />
                   </div>
                 </div>

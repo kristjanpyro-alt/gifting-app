@@ -108,15 +108,18 @@ interface Props {
   onChange: (v: string) => void;
   label?: string;
   labelClassName?: string;
+  /** Year to land on when value is empty. Birthday contexts → CUR_YEAR-30. Event contexts → CUR_YEAR. */
+  defaultYear?: number;
 }
 
-export default function WheelDatePicker({ value, onChange, label, labelClassName }: Props) {
+export default function WheelDatePicker({ value, onChange, label, labelClassName, defaultYear }: Props) {
   const [open, setOpen] = useState(false);
   const touched = useRef(false);
 
   // Parse stored YYYY-MM-DD
   const parse = (v: string) => {
-    if (!v) return { d: 0, m: 0, yIdx: YEARS.indexOf(String(CUR_YEAR - 20)) };
+    const fallbackYear = defaultYear ?? CUR_YEAR - 20;
+    if (!v) return { d: 0, m: 0, yIdx: Math.max(0, YEARS.indexOf(String(fallbackYear))) };
     const [y, mo, da] = v.split('-').map(Number);
     return { d: da - 1, m: mo - 1, yIdx: Math.max(0, YEARS.indexOf(String(y))) };
   };
@@ -231,9 +234,9 @@ export default function WheelDatePicker({ value, onChange, label, labelClassName
               <button
                 type="button"
                 onClick={handleClose}
-                className="w-full py-3.5 text-[11px] font-bold uppercase tracking-widest border-t border-black/[0.05] text-charcoal/50 hover:text-charcoal hover:bg-stone-50 transition-colors cursor-pointer"
+                className="w-full py-4 text-[11px] font-bold uppercase tracking-widest bg-charcoal text-white hover:bg-charcoal/85 transition-colors cursor-pointer"
               >
-                Done — {String(clampedDay + 1).padStart(2, '0')} / {MONTH_NAMES[monthIdx]} / {YEARS[yearIdx]}
+                Set — {String(clampedDay + 1).padStart(2, '0')} / {MONTH_NAMES[monthIdx]} / {YEARS[yearIdx]}
               </button>
             </div>
           </motion.div>
