@@ -7,6 +7,19 @@ import {
   matchPersonToHoliday,
   ideasFocusFromSystemOccasion,
 } from '../data/holidays';
+import Mascot from './Mascot';
+
+/** Days until next occurrence of person's birthday. Returns null if no birthday set. */
+function daysUntilBirthday(birthday?: string): number | null {
+  if (!birthday) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = birthday.split('-').map(Number);
+  if (!m || !d) return null;
+  let next = new Date(today.getFullYear(), m - 1, d);
+  if (next < today) next = new Date(today.getFullYear() + 1, m - 1, d);
+  return Math.round((next.getTime() - today.getTime()) / 86_400_000);
+}
 
 interface PeopleListViewProps {
   people: Person[];
@@ -342,15 +355,31 @@ export default function PeopleListView({ people, occasions, onPersonClick, onAdd
                   className="flex items-center gap-5 px-6 pt-6 pb-5 cursor-pointer active:bg-stone-50/60 transition-colors"
                   onClick={() => onPersonClick(person.id, 'profile')}
                 >
-                  {/* Avatar */}
-                  <div
-                    className="w-[72px] h-[72px] rounded-full flex items-center justify-center text-[34px] flex-shrink-0 border-[3.5px] border-white"
-                    style={{
-                      background: `linear-gradient(140deg, ${color}28 0%, ${color}90 100%)`,
-                      boxShadow: `0 8px 24px ${color}35, 0 2px 8px ${color}20`,
-                    }}
-                  >
-                    {person.emoji || person.initials[0]}
+                  {/* Avatar + birthday badge when ≤7 days away */}
+                  <div className="relative flex-shrink-0">
+                    <div
+                      className="w-[72px] h-[72px] rounded-full flex items-center justify-center text-[34px] border-[3.5px] border-white"
+                      style={{
+                        background: `linear-gradient(140deg, ${color}28 0%, ${color}90 100%)`,
+                        boxShadow: `0 8px 24px ${color}35, 0 2px 8px ${color}20`,
+                      }}
+                    >
+                      {person.emoji || person.initials[0]}
+                    </div>
+                    {(() => {
+                      const d = daysUntilBirthday(person.birthday);
+                      if (d === null || d > 7) return null;
+                      return (
+                        <div
+                          className="absolute -top-1 -right-1 w-9 h-9 rounded-full bg-white flex items-center justify-center"
+                          style={{ boxShadow: '0 4px 10px rgba(152,88,176,0.25)' }}
+                          title={d === 0 ? 'Birthday today!' : `Birthday in ${d} day${d === 1 ? '' : 's'}`}
+                          aria-label={d === 0 ? 'Birthday today' : `Birthday in ${d} days`}
+                        >
+                          <Mascot pose="seasonal-bday" size={32} />
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Name + relation */}
@@ -442,8 +471,10 @@ export default function PeopleListView({ people, occasions, onPersonClick, onAdd
                   <div className="absolute -top-5 left-0 right-0 h-10 flex items-center justify-center">
                     <div className="w-full h-5 bg-white/25 rounded-full" />
                   </div>
-                  {/* G letter */}
-                  <span className="relative z-10 text-white/40 font-black text-3xl mt-4 select-none">G</span>
+                  {/* Mascot peek */}
+                  <div className="relative z-10 mt-3 opacity-60 pointer-events-none">
+                    <Mascot pose="peek" size={52} />
+                  </div>
                 </div>
                 {/* Floating heart */}
                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 text-3xl animate-bounce" style={{ animationDuration: "2.4s" }}>
@@ -466,8 +497,8 @@ export default function PeopleListView({ people, occasions, onPersonClick, onAdd
               onClick={() => onAddClick()}
               className="flex items-center gap-2 px-7 py-3.5 rounded-full font-bold text-[12px] uppercase tracking-[0.18em] text-white transition-all active:scale-95"
               style={{
-                background: "linear-gradient(145deg, #D43A58 0%, #C42040 48%, #A81838 100%)",
-                boxShadow: "0 8px 24px rgba(196,32,64,0.40), 0 2px 8px rgba(196,32,64,0.22)",
+                background: "linear-gradient(145deg, #C490D1 0%, #B070C0 48%, #9858B0 100%)",
+                boxShadow: "0 8px 24px rgba(152,88,176,0.42), 0 2px 8px rgba(152,88,176,0.22)",
               }}
             >
               <Plus className="w-4 h-4" strokeWidth={2.5} />

@@ -26,25 +26,14 @@ export default function SplashScreen({ onDone }: Props) {
               'radial-gradient(ellipse 80% 70% at 50% 38%, #fff0f0 0%, #fdf8f7 55%, #f5f0ef 100%)',
           }}
         >
-          {/* G logo — spring bounce */}
-          <motion.img
-            src="/g-logo.png"
-            alt=""
-            initial={{ scale: 0.65, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.65, ease: [0.34, 1.56, 0.64, 1], delay: 0.08 }}
-            className="w-[140px] h-[140px] object-contain drop-shadow-[0_12px_32px_rgba(209,70,70,0.22)]"
-            style={{ mixBlendMode: 'multiply' }}
-          />
-
-          {/* Full wordmark — fades up */}
+          {/* Wordmark — spring bounce in (now self-branded with mascot) */}
           <motion.img
             src="/giftin-wordmark.png"
             alt="Giftin"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.52 }}
-            className="w-[220px] object-contain -mt-2"
+            initial={{ scale: 0.7, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1], delay: 0.1 }}
+            className="w-[260px] object-contain drop-shadow-[0_12px_32px_rgba(209,70,70,0.18)]"
             style={{ mixBlendMode: 'multiply' }}
           />
 
@@ -52,8 +41,8 @@ export default function SplashScreen({ onDone }: Props) {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.0 }}
-            className="mt-5 text-[11px] font-semibold uppercase tracking-[0.28em] text-charcoal/30"
+            transition={{ duration: 0.6, delay: 0.85 }}
+            className="mt-6 text-[11px] font-semibold uppercase tracking-[0.28em] text-charcoal/30"
           >
             Thoughtful gifting
           </motion.p>

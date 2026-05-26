@@ -29,6 +29,7 @@ import {
 } from "./data/holidays";
 import MilestoneModal from "./components/MilestoneModal";
 import SplashScreen from "./components/SplashScreen";
+import Mascot from "./components/Mascot";
 import { StorageService } from "./services/StorageService";
 import { curateGiftIdeas } from "./services/geminiService";
 import { Person, Occasion, IdeasOccasionFocus, GiftIdea, UserProfile } from "./types";
@@ -57,6 +58,7 @@ export default function App() {
   const [notificationTimings, setNotificationTimings] = useState<number[]>([7]);
   const [limitToast, setLimitToast] = useState<string | null>(null);
   const [ideasInitialOccasionId, setIdeasInitialOccasionId] = useState<string | null>(null);
+  const [showOnboardingHandoff, setShowOnboardingHandoff] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -287,26 +289,46 @@ export default function App() {
     userCity: string,
     timings: number[],
     profile?: UserProfile,
+    preGeneratedIdeas?: GiftIdea[],
   ) => {
-    StorageService.addPerson(person);
+    const nextOcc = [...onboardOccasions]
+      .sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
+
+    // If onboarding pre-generated real ideas, attach them to the person now.
+    let personToSave = person;
+    if (preGeneratedIdeas && preGeneratedIdeas.length > 0) {
+      personToSave = {
+        ...person,
+        generatedIdeas: preGeneratedIdeas,
+        generationHistory: [{
+          id: `onboard-${Date.now()}`,
+          date: new Date().toISOString(),
+          ideas: preGeneratedIdeas,
+          occasionKey: nextOcc?.id,
+        }],
+      };
+    }
+
+    StorageService.addPerson(personToSave);
     onboardOccasions.forEach((o) => StorageService.addOccasion(o));
     StorageService.setOnboarded(true);
     StorageService.setUserCity(userCity);
     StorageService.setNotificationTimings(timings);
     if (profile) StorageService.setUserProfile(profile);
-    setPeople([person]);
+    setPeople([personToSave]);
     setOccasions(onboardOccasions);
     setNotificationTimings(timings);
     setHasOnboarded(true);
     setCurrentView("home");
+    setShowOnboardingHandoff(true);
+    setTimeout(() => setShowOnboardingHandoff(false), 1100);
 
-    // Auto-kickoff: generate first 5 gift ideas for this person in background.
-    // No await — let user land on home while it runs. Updates state when done.
+    // Skip auto-kickoff when we already have pre-generated ideas.
+    if (preGeneratedIdeas && preGeneratedIdeas.length > 0) return;
+
+    // Fallback path: pre-generation didn't run or failed. Kick off in background.
     (async () => {
       try {
-        // Soonest occasion (birthday or anniversary) drives the brief.
-        const nextOcc = [...onboardOccasions]
-          .sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
         const ideas = await curateGiftIdeas(person, nextOcc);
         const batch = {
           id: `onboard-${Date.now()}`,
@@ -765,6 +787,22 @@ export default function App() {
         people={people}
         existingOccasions={occasions}
       />
+
+      {/* Onboarding → Home handoff: carrying mascot glides center → bottom-right */}
+      <AnimatePresence>
+        {showOnboardingHandoff && (
+          <motion.div
+            initial={{ left: '50%', top: '50%', x: '-50%', y: '-50%', scale: 1, opacity: 0, rotate: -6 }}
+            animate={{ left: '85%', top: '88%', x: '-50%', y: '-50%', scale: 0.45, opacity: [0, 1, 1, 0], rotate: 6 }}
+            transition={{ duration: 1.05, ease: [0.65, 0, 0.35, 1], times: [0, 0.15, 0.85, 1] }}
+            className="fixed z-[120] pointer-events-none"
+            style={{ filter: 'drop-shadow(0 18px 32px rgba(152,88,176,0.32))' }}
+            aria-hidden
+          >
+            <Mascot pose="carrying" size={180} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

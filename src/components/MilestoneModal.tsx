@@ -2,6 +2,7 @@ import { useState, FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, CalendarDays, MessageSquare, Sparkles, ChevronRight, Gift, Tag } from "lucide-react";
 import { Occasion, Person } from "../types";
+import Mascot from "./Mascot";
 import {
   MILESTONE_TYPES,
   MILESTONE_EMOJIS,
@@ -115,15 +116,15 @@ export default function MilestoneModal({
             {/* Header */}
             <div className="px-6 pt-5 pb-4 flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-primary/12 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-primary" strokeWidth={1.75} />
+                <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
+                  <Mascot pose="celebration" size={52} />
                 </div>
                 <div>
                   <h2 className="text-[22px] font-bold text-charcoal tracking-tight leading-tight">
                     Log Milestone
                   </h2>
                   <p className="text-[13px] text-on-surface-variant mt-0.5">
-                    Capture life's meaningful moments ✨
+                    Capture life's meaningful moments
                   </p>
                 </div>
               </div>

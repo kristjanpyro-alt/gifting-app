@@ -4,6 +4,7 @@ import {
   ChevronRight, ChevronLeft, CalendarDays,
   Gift, Heart, GraduationCap, Cake, Home as HomeIcon, Baby, Ghost,
 } from 'lucide-react';
+import Mascot from './Mascot';
 import { Occasion, Person, IdeasOccasionFocus } from '../types';
 import {
   buildSystemOccasions,
@@ -71,6 +72,24 @@ function greeting() {
   if (h < 12) return 'Good Morning';
   if (h < 18) return 'Good Afternoon';
   return 'Good Evening';
+}
+
+/**
+ * Header mascot pose. Priority: active season window > late-night > default idle.
+ * Seasonal windows:
+ *   xmas: Dec 1–26
+ *   ny:   Dec 27–Jan 2
+ *   vday: Feb 7–14
+ */
+function headerMascotPose(today: Date): import('./Mascot').MascotPose {
+  const m = today.getMonth(); // 0–11
+  const d = today.getDate();
+  const h = today.getHours();
+  if (m === 11 && d >= 1 && d <= 26) return 'seasonal-xmas';
+  if ((m === 11 && d >= 27) || (m === 0 && d <= 2)) return 'seasonal-ny';
+  if (m === 1 && d >= 7 && d <= 14) return 'seasonal-vday';
+  if (h >= 23 || h < 5) return 'sleep';
+  return 'idle';
 }
 
 function buildMerged(occasions: Occasion[], year: number, today: Date) {
@@ -427,13 +446,29 @@ export default function HomeView({
       )}
 
       {/* ── Greeting ── */}
-      <header className="mb-5 px-1">
-        <h1 className="text-[24px] font-bold tracking-tight text-charcoal">
-          {greeting()}
-        </h1>
-        <p className="text-[13px] text-charcoal/60 mt-1 font-medium">
-          Here's what's coming up
-        </p>
+      <header className="mb-5 px-1 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[24px] font-bold tracking-tight text-charcoal">
+            {greeting()}
+          </h1>
+          <p className="text-[13px] text-charcoal/60 mt-1 font-medium">
+            Here's what's coming up
+          </p>
+        </div>
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1, y: [0, -3, 0] }}
+          transition={{
+            scale: { type: 'spring', stiffness: 280, damping: 20, delay: 0.1 },
+            opacity: { duration: 0.4, delay: 0.1 },
+            y: { duration: 4, repeat: Infinity, ease: 'easeInOut' },
+          }}
+          className="flex-shrink-0 -mt-1"
+          style={{ filter: 'drop-shadow(0 6px 14px rgba(152,88,176,0.18))' }}
+          aria-hidden
+        >
+          <Mascot pose={headerMascotPose(currentDate)} size={64} />
+        </motion.div>
       </header>
 
       {/* ── Calendar ── */}
@@ -649,9 +684,22 @@ export default function HomeView({
       )}
 
       {linkedThisMonth.length === 0 && linkedLaterStrip.length === 0 && unlinkedThisMonth.length === 0 && unlinkedLaterStripVisible.length === 0 && (
-        <div className="py-16 text-center">
-          <p className="text-[11px] font-semibold text-charcoal/25 uppercase tracking-widest">Nothing coming up soon</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="py-12 flex flex-col items-center text-center"
+        >
+          <motion.div
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ filter: 'drop-shadow(0 10px 22px rgba(152,88,176,0.18))' }}
+          >
+            <Mascot pose="sleep" size={140} />
+          </motion.div>
+          <p className="mt-3 text-[13px] font-semibold text-charcoal/55">Nothing brewing right now.</p>
+          <p className="mt-1 text-[12px] text-charcoal/40">Add someone to start watching dates.</p>
+        </motion.div>
       )}
     </div>
   );

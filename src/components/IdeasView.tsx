@@ -21,6 +21,7 @@ import {
 import { GiftIdea, Person, Occasion, IdeasOccasionFocus } from '../types';
 import { curateGiftIdeas } from '../services/geminiService';
 import { upcomingSystemOccasions } from '../data/holidays';
+import Mascot from './Mascot';
 import {
   buildUpcomingGiftEventsForPerson,
   batchesForGiftEvent,
@@ -1013,13 +1014,21 @@ export default function IdeasView({
           
           <AnimatePresence>
             {saveMessage && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 bg-charcoal text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl border border-white/10 text-center whitespace-nowrap"
+                className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 bg-charcoal text-white pl-2 pr-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl border border-white/10 flex items-center gap-2 whitespace-nowrap"
               >
-                {saveMessage}
+                <motion.div
+                  initial={{ scale: 0.4, rotate: -20 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 16 }}
+                  className="flex-shrink-0"
+                >
+                  <Mascot pose="celebration" size={36} />
+                </motion.div>
+                <span>{saveMessage}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1077,7 +1086,24 @@ export default function IdeasView({
                   ))
                 )}
               </div>
-            ) : !isGenerating && (
+            ) : isGenerating ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className="py-16 flex flex-col items-center text-center bg-white/40 rounded-[40px] border border-white/60 backdrop-blur-sm"
+              >
+                <motion.div
+                  animate={{ y: [0, -5, 0], rotate: [-1.5, 1.5, -1.5] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ filter: 'drop-shadow(0 14px 26px rgba(152,88,176,0.22))' }}
+                >
+                  <Mascot pose="thinking" size={140} />
+                </motion.div>
+                <p className="mt-4 text-[14px] font-bold text-charcoal/75">Looking for ideas…</p>
+                <p className="mt-1 text-[12px] text-charcoal/45">Matching {firstName}'s vibe.</p>
+              </motion.div>
+            ) : (
               <div className="py-20 text-center bg-stone-50/50 rounded-[40px] border-2 border-dashed border-stone-100">
                 <p className="text-charcoal/35 text-[13px] font-medium">Tap above to find your first idea.</p>
               </div>

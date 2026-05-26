@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Check, Sparkles, Heart, Bell, Gift, Lightbulb, ListChecks } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Heart, Bell, Gift, Lightbulb, ListChecks, ChevronRight, Pencil } from 'lucide-react';
 import WheelDatePicker from './WheelDatePicker';
 import CustomSelect from './CustomSelect';
 import Mascot from './Mascot';
 import {
-  Person, Occasion, UserProfile, UserIntent, GiftVibe, BudgetBand,
+  Person, Occasion, UserProfile, UserIntent, GiftVibe, BudgetBand, GiftIdea,
 } from '../types';
 import { deriveArchetype } from '../utils/archetype';
 import { sampleGiftsFor } from '../utils/sampleGifts';
 import { RELATIONS } from '../constants';
+import { curateGiftIdeas } from '../services/geminiService';
+import { StorageService } from '../services/StorageService';
 
 interface OnboardingV2ViewProps {
   onComplete: (
@@ -18,6 +20,7 @@ interface OnboardingV2ViewProps {
     userCity: string,
     timings: number[],
     profile: UserProfile,
+    preGeneratedIdeas?: GiftIdea[],
   ) => void;
   onSkip: () => void;
 }
@@ -49,61 +52,6 @@ const GIFT_TILE_BG = [
   { from: '#FED7AA', to: '#FDBA74' }, // peach
 ];
 
-// ── Floating clouds (decorative parallax layer) ─────────────────────────────
-function FloatingClouds() {
-  // Each cloud: starting position, scale, drift speed, drift distance.
-  // Drift uses motion's repeat + repeatType: 'reverse' for natural back-and-forth.
-  const clouds = [
-    { top: '6%',  left: '-12%', scale: 1.0,  duration: 38, drift: 110, opacity: 0.55, blur: 12 },
-    { top: '18%', left: '55%',  scale: 0.75, duration: 52, drift: -80, opacity: 0.42, blur: 14 },
-    { top: '34%', left: '-8%',  scale: 0.6,  duration: 46, drift: 95,  opacity: 0.38, blur: 10 },
-    { top: '62%', left: '60%',  scale: 0.9,  duration: 60, drift: -120,opacity: 0.32, blur: 16 },
-    { top: '78%', left: '-15%', scale: 0.55, duration: 50, drift: 130, opacity: 0.30, blur: 12 },
-  ];
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
-      {clouds.map((c, i) => (
-        <motion.div
-          key={i}
-          initial={{ x: 0, y: 0 }}
-          animate={{
-            x: [0, c.drift, 0],
-            y: [0, c.drift > 0 ? -6 : 6, 0],
-          }}
-          transition={{
-            duration: c.duration,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: i * 1.2,
-          }}
-          style={{
-            position: 'absolute',
-            top: c.top,
-            left: c.left,
-            transform: `scale(${c.scale})`,
-            opacity: c.opacity,
-            filter: `blur(${c.blur}px)`,
-          }}
-        >
-          <Cloud />
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-function Cloud() {
-  return (
-    <svg width="180" height="90" viewBox="0 0 180 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="55" rx="42" ry="28" fill="white" />
-      <ellipse cx="95" cy="42" rx="38" ry="32" fill="white" />
-      <ellipse cx="135" cy="55" rx="36" ry="26" fill="white" />
-      <ellipse cx="78" cy="62" rx="28" ry="20" fill="white" />
-      <ellipse cx="118" cy="64" rx="24" ry="18" fill="white" />
-    </svg>
-  );
-}
-
 // ── Tiny haptic helper ──────────────────────────────────────────────────────
 function tapHaptic() {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -113,34 +61,55 @@ function tapHaptic() {
 
 // ── Reusable CTA ────────────────────────────────────────────────────────────
 function PrimaryCTA({
-  children, onClick, disabled,
-}: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  children, onClick, disabled, helperText, leadingIcon, hideChevron,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  /** Text shown beneath the button when disabled. Helps explain why it's locked. */
+  helperText?: string;
+  /** Optional icon rendered to the left of the label. */
+  leadingIcon?: React.ReactNode;
+  /** Hide the trailing chevron (e.g. for non-progressing CTAs). */
+  hideChevron?: boolean;
+}) {
   return (
-    <motion.button
-      whileTap={{ scale: 0.98 }}
-      onClick={() => { if (!disabled) { tapHaptic(); onClick(); } }}
-      disabled={disabled}
-      className="w-full py-4 rounded-2xl font-bold text-[15px] transition-all"
-      style={
-        disabled
-          ? {
-              background: 'rgba(255,255,255,0.4)',
-              color: 'rgba(28,28,30,0.30)',
-              border: '1px solid rgba(28,28,30,0.08)',
-              boxShadow: 'none',
-              backdropFilter: 'blur(20px) saturate(140%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-            }
-          : {
-              background: 'linear-gradient(145deg, #C490D1 0%, #B070C0 50%, #9858B0 100%)',
-              color: '#fff',
-              boxShadow: '0 8px 24px rgba(152,88,176,0.40), inset 0 1.5px 0 rgba(255,255,255,0.35)',
-              border: 'none',
-            }
-      }
-    >
-      {children}
-    </motion.button>
+    <div className="w-full">
+      <motion.button
+        whileTap={{ scale: 0.98 }}
+        onClick={() => { if (!disabled) { tapHaptic(); onClick(); } }}
+        disabled={disabled}
+        className="w-full py-[18px] rounded-full font-bold text-[15.5px] transition-all flex items-center justify-center gap-2 relative"
+        style={
+          disabled
+            ? {
+                background: 'rgba(255,255,255,0.45)',
+                color: 'rgba(28,28,30,0.32)',
+                border: '1px solid rgba(28,28,30,0.06)',
+                boxShadow: 'none',
+                backdropFilter: 'blur(20px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+              }
+            : {
+                background: 'linear-gradient(145deg, #C490D1 0%, #B070C0 45%, #9858B0 100%)',
+                color: '#fff',
+                boxShadow: '0 0 0 1px rgba(196,144,209,0.45), 0 14px 34px rgba(152,88,176,0.48), inset 0 1.5px 0 rgba(255,255,255,0.35)',
+                border: 'none',
+              }
+        }
+      >
+        {leadingIcon && <span className="flex-shrink-0">{leadingIcon}</span>}
+        <span>{children}</span>
+        {!hideChevron && !disabled && (
+          <ChevronRight className="w-4 h-4 -mr-1" strokeWidth={3} />
+        )}
+      </motion.button>
+      {disabled && helperText && (
+        <p className="text-center mt-2.5 text-[11px] font-semibold text-charcoal/45 tracking-wide">
+          {helperText}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -199,28 +168,27 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 
 // ── Static Shell (sky bg, progress, back). Never remounts. ──────────────────
 function Shell({
-  children, step, total, onBack, showProgress = true, clouds = false,
+  children, step, total, onBack, showProgress = true,
 }: {
   children: React.ReactNode;
   step: number;
   total: number;
   onBack?: () => void;
   showProgress?: boolean;
-  clouds?: boolean;
 }) {
+  const bgUrl = step === 0 ? '/onboarding-hero.png' : '/onboarding-background.png';
   return (
     <div
-      className="min-h-screen w-full font-body text-charcoal antialiased selection:bg-[#8B5CF6]/20 relative overflow-hidden"
+      className="fixed inset-0 z-[50] w-full font-body text-charcoal antialiased selection:bg-[#8B5CF6]/20 overflow-y-auto"
       style={{
-        backgroundImage: "url('/gifting-background.png')",
+        backgroundImage: `url('${bgUrl}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         backgroundRepeat: 'no-repeat',
-        backgroundColor: '#F8D8C8',
+        backgroundColor: '#C8A8D8',
       }}
     >
-      {clouds && <FloatingClouds />}
-      <div className="max-w-md mx-auto min-h-screen flex flex-col px-5 pt-12 pb-8 relative z-10">
+      <div className="max-w-md mx-auto min-h-full flex flex-col px-5 pt-12 pb-8 relative z-10">
         {showProgress && (
           <div className="flex items-center justify-between mb-8">
             {onBack ? (
@@ -400,20 +368,21 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
     return [...arr, item];
   }
 
-  function finish() {
-    const personId = 'p-' + Date.now();
+  // Stable person id across the onboarding session so pre-generation matches finish().
+  const personIdRef = useRef<string>('p-' + Date.now());
 
-    // Synthesize giftingFear from intent so Gemini's fear block fires meaningfully.
-    const INTENT_TO_FEAR: Record<string, string> = {
-      'forgetful':       'forgetting the occasion',
-      'never-know':      'picking something they won\'t use',
-      'feel-generic':    'giving something generic',
-      'last-minute':     'running out of time',
-      'more-thoughtful': 'the gift not feeling thoughtful enough',
-    };
+  // Synthesize giftingFear from intent so Gemini's fear block fires meaningfully.
+  const INTENT_TO_FEAR: Record<string, string> = {
+    'forgetful':       'forgetting the occasion',
+    'never-know':      'picking something they won\'t use',
+    'feel-generic':    'giving something generic',
+    'last-minute':     'running out of time',
+    'more-thoughtful': 'the gift not feeling thoughtful enough',
+  };
 
-    const newPerson: Person = {
-      id: personId,
+  function buildOnboardingPerson(): Person {
+    return {
+      id: personIdRef.current,
       name: personName,
       initials: personName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
       relation: personRelation,
@@ -441,17 +410,19 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
         : undefined,
       giftingFear: intent ? INTENT_TO_FEAR[intent] : undefined,
     };
+  }
 
-    const occasions: Occasion[] = [];
+  function buildOnboardingOccasions(): Occasion[] {
+    const occs: Occasion[] = [];
     const now = new Date();
-    const buildOccasion = (type: string, date: string, emoji: string): Occasion => {
+    const make = (type: string, date: string, emoji: string): Occasion => {
       const [, m, d] = date.split('-').map(Number);
       let nextDate = new Date(now.getFullYear(), m - 1, d);
       if (nextDate < now) nextDate = new Date(now.getFullYear() + 1, m - 1, d);
       const daysRemaining = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return {
         id: `o-onboard-${type}-${Date.now()}`,
-        personId,
+        personId: personIdRef.current,
         title: `${personName}'s ${type}`,
         type,
         date,
@@ -461,22 +432,66 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
         emoji,
       };
     };
-    if (personBirthday) occasions.push(buildOccasion('Birthday', personBirthday, '🎂'));
+    if (personBirthday) occs.push(make('Birthday', personBirthday, '🎂'));
     if (isPartnerRel(personRelation) && anniversaryEnabled && anniversaryDate) {
-      occasions.push(buildOccasion('Anniversary', anniversaryDate, '💍'));
+      occs.push(make('Anniversary', anniversaryDate, '💍'));
     }
+    return occs;
+  }
 
-    const finalProfile: UserProfile = {
+  function buildFinalProfile(): UserProfile {
+    return {
       ...profile,
       archetype: archetype.label,
       trialStartedAt: new Date().toISOString(),
       subscriptionStatus: 'trial',
     };
+  }
+
+  // ── Pre-generation: real Gemini call kicked off at archetype reveal ──────
+  const [preGenIdeas, setPreGenIdeas] = useState<GiftIdea[] | null>(null);
+  const [preGenStatus, setPreGenStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+  const preGenKickedRef = useRef(false);
+
+  useEffect(() => {
+    if (step !== 7) return;
+    if (preGenKickedRef.current) return;
+    if (!personName || !personBirthday) return;
+    preGenKickedRef.current = true;
+
+    // Persist profile so geminiService's userProfileBlock() reads it during the call.
+    StorageService.setUserProfile(buildFinalProfile());
+
+    const p = buildOnboardingPerson();
+    const occs = buildOnboardingOccasions();
+    const nextOcc = [...occs].sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
+
+    setPreGenStatus('loading');
+    curateGiftIdeas(p, nextOcc)
+      .then(ideas => {
+        if (ideas && ideas.length > 0) {
+          setPreGenIdeas(ideas);
+          setPreGenStatus('ready');
+        } else {
+          setPreGenStatus('failed');
+        }
+      })
+      .catch(err => {
+        console.error('[Onboarding] pre-generation failed:', err);
+        setPreGenStatus('failed');
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  function finish() {
+    const newPerson = buildOnboardingPerson();
+    const occasions = buildOnboardingOccasions();
+    const finalProfile = buildFinalProfile();
 
     // notificationTimings: send 5 ideas at user-chosen lead, plus extra 7-day reminder
     const timings = reminderDays === 7 ? [7] : [reminderDays, 7];
 
-    onComplete(newPerson, occasions, '', timings, finalProfile);
+    onComplete(newPerson, occasions, '', timings, finalProfile, preGenIdeas ?? undefined);
   }
 
   // ── Render content per step (no Shell wrap) ──────────────────────────────
@@ -485,17 +500,6 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
       case 0:
         return (
           <div className="flex-1 flex flex-col items-center text-center px-4 pt-2 pb-8">
-            {/* Wordmark */}
-            <motion.img
-              src="/giftin-wordmark.png"
-              alt="Giftin"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="h-7 mb-2 mt-2 object-contain"
-              draggable={false}
-            />
-
             {/* Mascot hero — gentle hover bob */}
             <motion.div
               initial={{ scale: 0.7, opacity: 0 }}
@@ -516,7 +520,17 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
               transition={{ delay: 0.2, duration: 0.55 }}
               className="text-[30px] font-bold tracking-tight text-charcoal leading-[1.1] mb-3"
             >
-              Be the person<br />who always remembers.
+              Be the person<br />who always{' '}
+              <span
+                style={{
+                  background: 'linear-gradient(95deg, #2D1458 0%, #5B21B6 50%, #9D174D 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                remembers.
+              </span>
             </motion.h1>
 
             <motion.p
@@ -537,7 +551,7 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
             >
               {[
                 { Icon: Bell,        text: 'Never miss an important date' },
-                { Icon: Lightbulb,   text: 'AI ideas tuned to your people' },
+                { Icon: Lightbulb,   text: 'Ideas that actually fit who they are' },
                 { Icon: Heart,       text: 'Be the thoughtful one, always' },
               ].map(({ Icon, text }, i) => (
                 <div key={i} className="flex items-center gap-3 text-left">
@@ -558,7 +572,7 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
               transition={{ delay: 0.75, duration: 0.55 }}
               className="w-full max-w-xs space-y-2"
             >
-              <PrimaryCTA onClick={next}>Let's make gifting easier</PrimaryCTA>
+              <PrimaryCTA onClick={next} leadingIcon={<Gift className="w-4 h-4" strokeWidth={2.5} />}>Let's make gifting easier</PrimaryCTA>
               <button
                 onClick={onSkip}
                 className="w-full py-2 text-[11px] font-bold text-charcoal/35 uppercase tracking-widest hover:text-charcoal/55 transition-colors"
@@ -607,7 +621,7 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
               })}
             </div>
 
-            <PrimaryCTA onClick={next} disabled={!intent}>Continue</PrimaryCTA>
+            <PrimaryCTA onClick={next} disabled={!intent} helperText="Pick the one that hits hardest">Continue</PrimaryCTA>
           </>
         );
 
@@ -619,32 +633,23 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
             </h2>
             <p className="text-[13px] text-charcoal/60 mb-6 text-center">Tap everyone that comes to mind.</p>
 
-            {/* Orb stays centered — counter floats absolute, doesn't shift orb */}
-            <div className="relative h-24 mb-5 flex items-center justify-center">
+            {/* Cloud mascot (carrying pose) — grows with each circle selected, no swap, no counter */}
+            <div className="relative h-36 mb-5 flex items-center justify-center">
               <motion.div
-                animate={{ scale: 1 + Math.min(relationCircle.length, 8) * 0.035 }}
-                transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-                className="w-[68px] h-[68px] rounded-full flex items-center justify-center"
+                animate={{
+                  scale: 0.9 + Math.min(relationCircle.length, 8) * 0.06,
+                  y: [0, -3, 0],
+                }}
+                transition={{
+                  scale: { type: 'spring', stiffness: 260, damping: 18 },
+                  y: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' },
+                }}
                 style={{
-                  background: 'linear-gradient(145deg, #C490D1, #9858B0)',
-                  boxShadow: `0 ${8 + relationCircle.length * 1.5}px ${22 + relationCircle.length * 3}px rgba(152,88,176,${0.35 + relationCircle.length * 0.035})`,
+                  filter: `drop-shadow(0 ${6 + relationCircle.length * 1.8}px ${14 + relationCircle.length * 3}px rgba(152,88,176,${0.18 + relationCircle.length * 0.025}))`,
                 }}
               >
-                <Heart className="w-7 h-7 text-white" strokeWidth={1.8} fill="white" />
+                <Mascot pose="carrying" size={128} />
               </motion.div>
-              <AnimatePresence>
-                {relationCircle.length > 0 && (
-                  <motion.span
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute left-1/2 translate-x-12 text-[11px] font-bold text-charcoal/65 whitespace-nowrap"
-                  >
-                    {relationCircle.length} {relationCircle.length === 1 ? 'person' : 'people'}
-                  </motion.span>
-                )}
-              </AnimatePresence>
             </div>
 
             {/* Grid 2×4: emoji + label + check */}
@@ -691,7 +696,7 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
               })}
             </div>
 
-            <PrimaryCTA onClick={next} disabled={relationCircle.length === 0}>Continue</PrimaryCTA>
+            <PrimaryCTA onClick={next} disabled={relationCircle.length === 0} helperText="Tap at least one circle">Continue</PrimaryCTA>
           </>
         );
 
@@ -729,7 +734,7 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       onClick={() => { tapHaptic(); setBudgetBand(b.id); }}
-                      className="w-full py-3.5 px-4 rounded-[18px] text-left text-[14px] font-semibold transition-all"
+                      className="w-full py-3.5 px-4 rounded-[18px] text-left text-[14px] font-semibold transition-all flex items-center justify-between"
                       style={{
                         background: selected ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.62)',
                         border: selected ? `1.5px solid ${PURPLE}` : '1px solid rgba(255,255,255,0.7)',
@@ -739,14 +744,29 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
                         boxShadow: selected ? '0 6px 20px rgba(139,92,246,0.18)' : 'none',
                       }}
                     >
-                      {b.label}
+                      <span>{b.label}</span>
+                      {selected && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 460, damping: 22 }}
+                          className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: PURPLE }}
+                        >
+                          <Check className="w-3 h-3 text-white" strokeWidth={3.5} />
+                        </motion.div>
+                      )}
                     </motion.button>
                   </StaggerItem>
                 );
               })}
             </div>
 
-            <PrimaryCTA onClick={next} disabled={vibes.length === 0 || !budgetBand}>Continue</PrimaryCTA>
+            <PrimaryCTA
+              onClick={next}
+              disabled={vibes.length === 0 || !budgetBand}
+              helperText={vibes.length === 0 ? 'Pick at least one vibe' : 'Choose a comfort range'}
+            >Continue</PrimaryCTA>
           </>
         );
 
@@ -761,26 +781,36 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
               Just one for now. You can add more later.
             </p>
 
-            {/* Avatar bubble — relation emoji default, color-tinted */}
+            {/* Avatar bubble — relation emoji default, color-tinted, pencil cues editability */}
             <div className="flex flex-col items-center mb-5">
               <motion.div
                 initial={{ scale: 0.85, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.4 }}
-                className="w-[72px] h-[72px] rounded-full flex items-center justify-center text-[34px]"
+                className="relative w-[92px] h-[92px] rounded-full flex items-center justify-center text-[42px]"
                 style={{
-                  background: `${personColor}20`,
-                  border: `2px solid ${personColor}40`,
-                  boxShadow: `0 6px 20px ${personColor}28`,
+                  background: `${personColor}24`,
+                  border: `2.5px solid ${personColor}50`,
+                  boxShadow: `0 10px 26px ${personColor}30`,
                 }}
               >
                 {personEmoji || emojiForRelation(personRelation)}
+                <div
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white flex items-center justify-center"
+                  style={{
+                    boxShadow: '0 4px 12px rgba(139,92,168,0.25)',
+                    border: '1.5px solid rgba(255,255,255,0.9)',
+                  }}
+                  aria-hidden
+                >
+                  <Pencil className="w-3.5 h-3.5" style={{ color: personColor }} strokeWidth={2.5} />
+                </div>
               </motion.div>
               {personName && (
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-[12px] font-bold text-charcoal/65 mt-2"
+                  className="text-[12px] font-bold text-charcoal/65 mt-3"
                 >
                   {personName}
                 </motion.p>
@@ -917,10 +947,34 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
               </StaggerItem>
             </div>
 
-            <div className="pt-6">
-              <PrimaryCTA onClick={next} disabled={!personName || !personBirthday}>
-                Continue
-              </PrimaryCTA>
+            <div className="pt-6 relative">
+              {/* Peek mascot — tucked behind CTA, only head + bow visible above button */}
+              <motion.div
+                initial={{ y: 24, opacity: 0 }}
+                animate={{ y: [0, -2, 0], opacity: 1 }}
+                transition={{
+                  y: { duration: 3.6, repeat: Infinity, ease: 'easeInOut' },
+                  opacity: { duration: 0.45, delay: 0.25 },
+                }}
+                className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
+                style={{
+                  bottom: 'calc(100% - 38px)',
+                  zIndex: 0,
+                  filter: 'drop-shadow(0 6px 14px rgba(152,88,176,0.20))',
+                }}
+                aria-hidden
+              >
+                <Mascot pose="peek" size={88} />
+              </motion.div>
+              <div className="relative z-10">
+                <PrimaryCTA
+                  onClick={next}
+                  disabled={!personName || !personBirthday}
+                  helperText={!personName ? 'Add their name' : 'Pick their birthday'}
+                >
+                  Continue
+                </PrimaryCTA>
+              </div>
             </div>
           </>
         );
@@ -1166,7 +1220,7 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
                       Your Gift Profile
                     </p>
                     <div className="flex items-center gap-3 mb-5 relative">
-                      <Mascot pose="sparkle" size={64} />
+                      <Mascot pose="love" size={72} />
                       <h3 className="text-[22px] font-bold text-charcoal leading-tight tracking-tight">
                         {archetype.label}
                       </h3>
@@ -1176,7 +1230,7 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
                     </p>
 
                     <div className="space-y-2 pt-5 border-t border-white/40">
-                      <Stat label="Gifting for" value={`${relationCircle.length} ${relationCircle.length === 1 ? 'person type' : 'circles'}`} />
+                      <Stat label="Gifting for" value={`${relationCircle.length} ${relationCircle.length === 1 ? 'circle' : 'circles'}`} />
                       <Stat label="Style" value={vibes.slice(0, 3).map(v => VIBE_OPTIONS.find(x => x.id === v)?.label).filter(Boolean).join(', ')} />
                       <Stat label="Comfort" value={BUDGET_OPTIONS.find(b => b.id === budgetBand)?.label ?? '—'} />
                       {personName && <Stat label="First up" value={personName} />}
@@ -1261,58 +1315,112 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
         // ── Sample gifts + paywall ─────────────────────────────────
         return (
           <>
+            {/* Celebration mascot — small, top-right corner */}
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0, rotate: -8 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 18, delay: 0.2 }}
+              className="absolute top-12 right-1 pointer-events-none"
+              style={{ filter: 'drop-shadow(0 6px 14px rgba(152,88,176,0.20))' }}
+              aria-hidden
+            >
+              <Mascot pose="celebration" size={64} />
+            </motion.div>
+
             <h2 className="text-[24px] font-bold tracking-tight text-charcoal leading-tight mb-2">
-              3 ideas for {personName || 'your first person'}
+              {preGenStatus === 'ready' && preGenIdeas && preGenIdeas.length > 0
+                ? `${Math.min(3, preGenIdeas.length)} ideas for ${personName || 'your first person'}`
+                : `Ideas for ${personName || 'your first person'}`}
             </h2>
             <p className="text-[13px] text-charcoal/60 mb-6">
-              Picks we'd make for {personName || 'them'}.
+              {preGenStatus === 'ready'
+                ? `Picked just for ${personName || 'them'}.`
+                : preGenStatus === 'loading'
+                ? `Reading ${personName || 'their'} profile…`
+                : `A taste of what's next for ${personName || 'them'}.`}
             </p>
 
-            <div className="space-y-2.5 mb-6">
-              {sampleGiftsFor(vibes, budgetBand).map((g, i) => (
+            {preGenStatus === 'loading' ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="py-12 mb-6 flex flex-col items-center text-center rounded-[28px]"
+                style={{
+                  background: 'rgba(255,255,255,0.62)',
+                  border: '1px solid rgba(255,255,255,0.7)',
+                  backdropFilter: 'blur(20px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+                }}
+              >
                 <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + i * 0.1, duration: 0.4 }}
-                  className="rounded-[22px] p-3 flex items-center gap-3.5"
-                  style={{
-                    background: 'rgba(255,255,255,0.72)',
-                    backdropFilter: 'blur(20px) saturate(140%)',
-                    WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-                    border: '1px solid rgba(255,255,255,0.75)',
-                    boxShadow: '0 6px 18px rgba(139,92,168,0.12)',
-                  }}
+                  animate={{ y: [0, -5, 0], rotate: [-1.5, 1.5, -1.5] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ filter: 'drop-shadow(0 12px 22px rgba(152,88,176,0.22))' }}
                 >
-                  {/* Catalog-style tile */}
-                  <div
-                    className="w-[68px] h-[68px] rounded-[16px] flex items-center justify-center flex-shrink-0 relative overflow-hidden"
-                    style={{
-                      background: `linear-gradient(145deg, ${GIFT_TILE_BG[i % GIFT_TILE_BG.length].from}, ${GIFT_TILE_BG[i % GIFT_TILE_BG.length].to})`,
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 8px rgba(0,0,0,0.06)',
-                    }}
-                  >
-                    {/* Decorative ribbon cross */}
-                    <svg width="68" height="68" viewBox="0 0 68 68" className="absolute inset-0 opacity-25">
-                      <rect x="30" y="0" width="8" height="68" fill="white" />
-                      <rect x="0" y="30" width="68" height="8" fill="white" />
-                    </svg>
-                    <span className="text-[32px] relative z-10" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
-                      {g.emoji}
-                    </span>
-                  </div>
-                  <div className="flex-grow min-w-0">
-                    <p className="text-[13.5px] font-bold text-charcoal leading-tight mb-1">{g.title}</p>
-                    <p className="text-[11.5px] text-charcoal/55 leading-snug">{g.why}</p>
-                    {g.priceLabel && (
-                      <span className="inline-block mt-1.5 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: 'rgba(139,92,246,0.14)', color: '#6D28D9' }}>
-                        {g.priceLabel}
-                      </span>
-                    )}
-                  </div>
+                  <Mascot pose="thinking" size={120} />
                 </motion.div>
-              ))}
-            </div>
+                <p className="mt-3 text-[13px] font-bold text-charcoal/75">Curating real picks for {personName || 'them'}…</p>
+                <p className="mt-1 text-[11.5px] text-charcoal/45">Matching {(vibes[0] || 'their style')} · {budgetBand ? BUDGET_OPTIONS.find(b => b.id === budgetBand)?.label : 'flexible budget'}</p>
+              </motion.div>
+            ) : (
+              <div className="space-y-2.5 mb-6">
+                {(() => {
+                  const real = preGenStatus === 'ready' && preGenIdeas && preGenIdeas.length > 0
+                    ? preGenIdeas.slice(0, 3).map(idea => ({
+                        title:      idea.title,
+                        emoji:      idea.emoji || '🎁',
+                        why:        idea.rationale || idea.description || '',
+                        priceLabel: idea.price || '',
+                      }))
+                    : null;
+                  const items = real ?? sampleGiftsFor(vibes, budgetBand);
+                  return items.map((g, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + i * 0.1, duration: 0.4 }}
+                      className="rounded-[22px] p-3 flex items-center gap-3.5"
+                      style={{
+                        background: 'rgba(255,255,255,0.72)',
+                        backdropFilter: 'blur(20px) saturate(140%)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+                        border: '1px solid rgba(255,255,255,0.75)',
+                        boxShadow: '0 6px 18px rgba(139,92,168,0.12)',
+                      }}
+                    >
+                      {/* Catalog-style tile */}
+                      <div
+                        className="w-[68px] h-[68px] rounded-[16px] flex items-center justify-center flex-shrink-0 relative overflow-hidden"
+                        style={{
+                          background: `linear-gradient(145deg, ${GIFT_TILE_BG[i % GIFT_TILE_BG.length].from}, ${GIFT_TILE_BG[i % GIFT_TILE_BG.length].to})`,
+                          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 8px rgba(0,0,0,0.06)',
+                        }}
+                      >
+                        {/* Decorative ribbon cross */}
+                        <svg width="68" height="68" viewBox="0 0 68 68" className="absolute inset-0 opacity-25">
+                          <rect x="30" y="0" width="8" height="68" fill="white" />
+                          <rect x="0" y="30" width="68" height="8" fill="white" />
+                        </svg>
+                        <span className="text-[32px] relative z-10" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
+                          {g.emoji}
+                        </span>
+                      </div>
+                      <div className="flex-grow min-w-0">
+                        <p className="text-[13.5px] font-bold text-charcoal leading-tight mb-1">{g.title}</p>
+                        <p className="text-[11.5px] text-charcoal/55 leading-snug">{g.why}</p>
+                        {g.priceLabel && (
+                          <span className="inline-block mt-1.5 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: 'rgba(139,92,246,0.14)', color: '#6D28D9' }}>
+                            {g.priceLabel}
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  ));
+                })()}
+              </div>
+            )}
 
             <div
               className="rounded-[28px] p-6"
@@ -1378,7 +1486,6 @@ export default function OnboardingV2View({ onComplete, onSkip }: OnboardingV2Vie
       total={TOTAL_SCREENS}
       onBack={showBack ? back : undefined}
       showProgress={showProgress}
-      clouds={step === 0}
     >
       <AnimatePresence mode="popLayout" custom={dir}>
         <motion.div

@@ -27,23 +27,15 @@ function primaryVibe(vibes: GiftVibe[]): GiftVibe | null {
   return vibes[0] ?? null;
 }
 
-/** Friendly noun for "n people" — handles 0/1/many. */
-function peopleStr(n: number): string {
-  if (n === 0) return 'the people who matter';
-  if (n === 1) return 'one person';
-  return `${n} people`;
-}
-
 export function deriveArchetype(profile: UserProfile): Archetype {
   const intent: UserIntent | null = profile.intent;
   const vibe = primaryVibe(profile.vibes);
-  const circle = peopleStr(profile.relationCircle.length);
 
   // ── FORGETFUL ──────────────────────────────────────────────────────────
   if (intent === 'forgetful' && vibe === 'sentimental') {
     return {
       label: 'Heartfelt Planner',
-      tagline: `Gifting for ${circle} who matter, and you want every birthday to land. The forgetting part is the only thing in the way.`,
+      tagline: `Every birthday should land. The forgetting part is the only thing in the way.`,
       emoji: '💗',
     };
   }
@@ -57,7 +49,7 @@ export function deriveArchetype(profile: UserProfile): Archetype {
   if (intent === 'forgetful') {
     return {
       label: 'Quietly Reliable',
-      tagline: `You always show up. ${circle}, every year, even when the calendar is against you.`,
+      tagline: `You always show up — every year, even when the calendar is against you.`,
       emoji: '🌿',
     };
   }
@@ -80,7 +72,7 @@ export function deriveArchetype(profile: UserProfile): Archetype {
   if (intent === 'never-know') {
     return {
       label: 'Open-Hearted Searcher',
-      tagline: `${circle} on your list, and you care about each one. You just don't always know where to start.`,
+      tagline: `You care about each name on the list. You just don't always know where to start.`,
       emoji: '✨',
     };
   }
@@ -119,7 +111,7 @@ export function deriveArchetype(profile: UserProfile): Archetype {
   if (intent === 'last-minute') {
     return {
       label: 'The Sprinter',
-      tagline: `You think on your feet. ${circle}, all somehow handled in the last 48 hours.`,
+      tagline: `You think on your feet. Whole list, handled in the last 48 hours.`,
       emoji: '⏱️',
     };
   }
@@ -128,7 +120,7 @@ export function deriveArchetype(profile: UserProfile): Archetype {
   if (intent === 'more-thoughtful' && vibe === 'sentimental') {
     return {
       label: 'The Soft-Hearted Giver',
-      tagline: `Every gift carries something you can't quite say out loud. ${circle}, each one worth the care.`,
+      tagline: `Every gift carries something you can't quite say out loud. Each one worth the care.`,
       emoji: '💗',
     };
   }
@@ -143,7 +135,7 @@ export function deriveArchetype(profile: UserProfile): Archetype {
   // ── Fallback ──────────────────────────────────────────────────────────
   return {
     label: 'The Thoughtful One',
-    tagline: `Gifting for ${circle}, and getting it right matters to you more than getting it perfect.`,
+    tagline: `Getting it right matters to you more than getting it perfect.`,
     emoji: '🎁',
   };
 }

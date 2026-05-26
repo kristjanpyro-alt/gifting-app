@@ -8,17 +8,27 @@ export type MascotPose =
   | 'thinking'
   | 'alert'
   | 'peek'
-  | 'celebration';
+  | 'celebration'
+  | 'love'
+  | 'seasonal-xmas'
+  | 'seasonal-ny'
+  | 'seasonal-vday'
+  | 'seasonal-bday';
 
 const FALLBACK_EMOJI: Record<MascotPose, string> = {
-  idle:        '☁️',
-  carrying:    '🎁',
-  sparkle:     '✨',
-  sleep:       '😴',
-  thinking:    '💭',
-  alert:       '⚠️',
-  peek:        '👀',
-  celebration: '🎉',
+  idle:            '☁️',
+  carrying:        '🎁',
+  sparkle:         '✨',
+  sleep:           '😴',
+  thinking:        '💭',
+  alert:           '⚠️',
+  peek:            '👀',
+  celebration:     '🎉',
+  love:            '💌',
+  'seasonal-xmas': '🎄',
+  'seasonal-ny':   '🎆',
+  'seasonal-vday': '💝',
+  'seasonal-bday': '🎂',
 };
 
 interface MascotProps {
