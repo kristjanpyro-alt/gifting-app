@@ -108,4 +108,27 @@
   .btn-destructive {
     @apply text-charcoal/30 hover:text-red-400 transition-colors font-semibold text-[11px] uppercase tracking-widest cursor-pointer;
   }
+
+  /* Glass-morph card on sky background */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.62);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      0 8px 32px rgba(139, 92, 168, 0.12),
+      0 2px 8px rgba(139, 92, 168, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  /* Glass-morph nav bar (used for bottom nav) */
+  .glass-nav {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border-top: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 -8px 32px rgba(139, 92, 168, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
 }

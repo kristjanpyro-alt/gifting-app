@@ -1,4 +1,4 @@
-import { Person, Occasion } from '../types';
+import { Person, Occasion, UserProfile } from '../types';
 
 const STORAGE_KEYS = {
   PEOPLE: 'giftin_people',
@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   ONBOARDED: 'giftin_has_onboarded',
   USER_CITY: 'giftin_user_city',
   NOTIFICATION_TIMINGS: 'giftin_notification_timings',
+  USER_PROFILE: 'giftin_user_profile',
 };
 
 export const StorageService = {
@@ -97,5 +98,25 @@ export const StorageService = {
 
   setNotificationTimings: (timings: number[]) => {
     localStorage.setItem(STORAGE_KEYS.NOTIFICATION_TIMINGS, JSON.stringify(timings));
+  },
+
+  getUserProfile: (): UserProfile | null => {
+    const data = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+    return data ? JSON.parse(data) : null;
+  },
+
+  setUserProfile: (profile: UserProfile) => {
+    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
+  },
+
+  patchUserProfile: (patch: Partial<UserProfile>) => {
+    const current = StorageService.getUserProfile() ?? {
+      intent: null,
+      relationCircle: [],
+      vibes: [],
+      budgetBand: null,
+      subscriptionStatus: 'none' as const,
+    };
+    StorageService.setUserProfile({ ...current, ...patch });
   },
 };

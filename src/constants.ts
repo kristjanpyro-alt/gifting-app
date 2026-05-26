@@ -17,9 +17,9 @@ export const MONTHS = [
 ];
 
 export const RELATIONS = [
-  'Partner / Spouse',
   'Mother',
   'Father',
+  'Partner',
   'Brother',
   'Sister',
   'Son',

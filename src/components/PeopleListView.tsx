@@ -124,21 +124,23 @@ export default function PeopleListView({ people, occasions, onPersonClick, onAdd
   const hasOverflow = !showAllEvents && restRows.length > SHOW_LIMIT - 1;
 
   return (
-    <div className="pt-4 pb-20 px-6 max-w-lg mx-auto min-h-screen animate-in fade-in duration-700">
-      <div className="mb-8">
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-dusty-rose mb-2">GIFTIN</p>
-        <h2 className="font-headline text-4xl font-extrabold text-on-surface tracking-tighter italic">People</h2>
-      </div>
+    <div className="pt-6 px-5 max-w-lg mx-auto pb-32 animate-in fade-in duration-500 relative">
+      <header className="mb-5 px-1">
+        <h1 className="text-[24px] font-bold tracking-tight text-charcoal">People</h1>
+        <p className="text-[13px] text-charcoal/60 mt-1 font-medium">
+          Your inner circle
+        </p>
+      </header>
 
       {/* Upcoming Events Section */}
       {(bigRows.length > 0 || unmatchedHolidays.length > 0) && (
         <section className="mb-8">
           <div className="flex items-center gap-3 mb-4 px-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-dusty-rose animate-pulse" />
-            <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-charcoal/40">Upcoming</h3>
+            <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
+            <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-charcoal/65">Upcoming</h3>
           </div>
 
-          <div className="bg-white rounded-[28px] border border-stone-100 overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="glass-card rounded-[28px] overflow-hidden" style={{ background: 'rgba(255,255,255,0.78)' }}>
             {/* ── Hero card (soonest / selected event) ── */}
             {heroRow && (() => {
               const isPersonal = heroRow.kind === 'personal';

@@ -108,7 +108,7 @@ export function suggestedRelationForHolidayTitle(title: string): string | null {
 
   if (t.includes("mother")) return pick("Mother");
   if (t.includes("father")) return pick("Father");
-  if (t.includes("valentine")) return pick("Partner / Spouse");
+  if (t.includes("valentine")) return pick("Partner");
   if (t.includes("women")) return pick("Family member");
   if (t.includes("men")) return pick("Family member");
   if (t.includes("christmas") || t.includes("easter") || t.includes("halloween") || t.includes("new year"))

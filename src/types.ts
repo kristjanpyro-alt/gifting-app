@@ -61,6 +61,39 @@ export interface Occasion {
   isSystem?: boolean;
 }
 
+export type UserIntent =
+  | 'forgetful'
+  | 'never-know'
+  | 'feel-generic'
+  | 'last-minute'
+  | 'more-thoughtful';
+
+export type GiftVibe =
+  | 'practical'
+  | 'sentimental'
+  | 'experiential'
+  | 'surprising'
+  | 'luxury'
+  | 'handmade-feel';
+
+export type BudgetBand =
+  | 'under-25'
+  | '25-50'
+  | '50-100'
+  | '100-plus'
+  | 'depends';
+
+export interface UserProfile {
+  intent: UserIntent | null;
+  relationCircle: string[];
+  vibes: GiftVibe[];
+  budgetBand: BudgetBand | null;
+  archetype?: string;
+  trialStartedAt?: string;
+  subscriptionStatus: 'trial' | 'active' | 'expired' | 'none';
+  notificationsAsked?: boolean;
+}
+
 export interface GiftIdea {
   id: string;
   title: string;

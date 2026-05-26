@@ -8,19 +8,19 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Calendar as CalendarIcon,
   Users,
-  Settings as SettingsIcon,
   Plus,
   ChevronLeft,
   ChevronRight,
-  X,
   Star,
+  Gift,
+  UserCircle2,
 } from "lucide-react";
 
 import HomeView from "./components/HomeView";
 import ProfileView from "./components/ProfileView";
 import IdeasView from "./components/IdeasView";
 import PeopleListView from "./components/PeopleListView";
-import OnboardingView from "./components/OnboardingView";
+import OnboardingV2View from "./components/OnboardingV2View";
 import SettingsView from "./components/SettingsView";
 import AddPersonModal from "./components/AddPersonModal";
 import {
@@ -30,11 +30,12 @@ import {
 import MilestoneModal from "./components/MilestoneModal";
 import SplashScreen from "./components/SplashScreen";
 import { StorageService } from "./services/StorageService";
-import { Person, Occasion, IdeasOccasionFocus, GiftIdea } from "./types";
+import { curateGiftIdeas } from "./services/geminiService";
+import { Person, Occasion, IdeasOccasionFocus, GiftIdea, UserProfile } from "./types";
 import { calculateDaysRemaining, MONTHS } from "./constants";
 import { isOccasionTypeAvailableForPerson } from "./utils/occasionRules";
 
-type View = "home" | "people" | "ideas" | "settings" | "person-profile";
+type View = "home" | "people" | "ideas" | "settings" | "person-profile" | "gifts" | "me";
 
 export default function App() {
   const today = new Date();
@@ -284,18 +285,46 @@ export default function App() {
     person: Person,
     onboardOccasions: Occasion[],
     userCity: string,
-    timings: number[]
+    timings: number[],
+    profile?: UserProfile,
   ) => {
     StorageService.addPerson(person);
     onboardOccasions.forEach((o) => StorageService.addOccasion(o));
     StorageService.setOnboarded(true);
     StorageService.setUserCity(userCity);
     StorageService.setNotificationTimings(timings);
+    if (profile) StorageService.setUserProfile(profile);
     setPeople([person]);
     setOccasions(onboardOccasions);
     setNotificationTimings(timings);
     setHasOnboarded(true);
     setCurrentView("home");
+
+    // Auto-kickoff: generate first 5 gift ideas for this person in background.
+    // No await — let user land on home while it runs. Updates state when done.
+    (async () => {
+      try {
+        // Soonest occasion (birthday or anniversary) drives the brief.
+        const nextOcc = [...onboardOccasions]
+          .sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
+        const ideas = await curateGiftIdeas(person, nextOcc);
+        const batch = {
+          id: `onboard-${Date.now()}`,
+          date: new Date().toISOString(),
+          ideas,
+          occasionKey: nextOcc?.id,
+        };
+        const updated: Person = {
+          ...person,
+          generatedIdeas: ideas,
+          generationHistory: [batch],
+        };
+        StorageService.updatePerson(updated);
+        setPeople((prev) => prev.map((p) => (p.id === person.id ? updated : p)));
+      } catch (e) {
+        console.error("First-ideas generation failed:", e);
+      }
+    })();
   };
 
   const handleOnboardingSkip = () => {
@@ -313,7 +342,7 @@ export default function App() {
 
   if (!hasOnboarded) {
     return (
-      <OnboardingView
+      <OnboardingV2View
         onComplete={handleOnboardingComplete}
         onSkip={handleOnboardingSkip}
       />
@@ -322,6 +351,27 @@ export default function App() {
 
   const renderView = () => {
     switch (currentView) {
+      case "gifts":
+        return (
+          <IdeasView
+            onBack={() => {
+              setIdeasOccasionFocus(null);
+              setIdeasInitialOccasionId(null);
+              setCurrentView("home");
+            }}
+            personId={selectedPersonId}
+            occasionFocus={ideasOccasionFocus}
+            initialOccasionId={ideasInitialOccasionId}
+            people={people}
+            occasions={occasions}
+            onUpdatePerson={handleUpdatePerson}
+            onRecordIdeaGeneration={handleRecordIdeaGeneration}
+            onSelectPerson={handleIdeasSelectPerson}
+            onRequestAddPerson={() => openAddPerson()}
+          />
+        );
+      case "me":
+        return <SettingsView people={people} occasions={occasions} />;
       case "home":
         return (
           <HomeView
@@ -407,7 +457,14 @@ export default function App() {
   return (
     <div
       className="min-h-screen selection:bg-primary/20 relative overflow-x-hidden font-body text-charcoal antialiased"
-      style={{ background: 'radial-gradient(circle at 92% 6%, rgba(196,32,64,0.10) 0%, rgba(196,32,64,0.03) 28%, transparent 46%) #fdf4f5' }}
+      style={{
+        backgroundImage: "url('/gifting-background.png')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center top',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        backgroundColor: '#F8D8C8',
+      }}
     >
 
       {/* Limit toast */}
@@ -425,15 +482,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Top Settings / Back button */}
-      {currentView !== "settings" ? (
-        <button
-          onClick={() => setCurrentView("settings")}
-          className="fixed top-8 right-6 z-[60] p-2 text-charcoal/30 hover:text-charcoal/60 transition-all active:scale-90"
-        >
-          <SettingsIcon className="w-5 h-5" strokeWidth={1.5} />
-        </button>
-      ) : (
+      {/* Back button on legacy settings route (kept for deep links) */}
+      {currentView === "settings" && (
         <button
           onClick={() => setCurrentView("home")}
           className="fixed top-8 left-6 z-[60] p-1.5 text-charcoal/40 hover:text-charcoal transition-all active:scale-90 bg-white/30 backdrop-blur-md rounded-full shadow-sm"
@@ -573,118 +623,123 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation — 4 items + center FAB */}
       <nav
-        className={`fixed bottom-0 left-0 w-full z-[80] flex items-center justify-between px-12 pb-7 pt-2 bg-white/95 backdrop-blur-3xl transition-opacity duration-200 ${(isAddModalOpen || isMilestoneModalOpen) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        style={{ boxShadow: "0 -1px 0 rgba(0,0,0,0.04), 0 -16px 48px rgba(0,0,0,0.07), 0 -4px 16px rgba(0,0,0,0.04)" }}
+        className={`fixed bottom-0 left-0 w-full z-[80] glass-nav flex items-center justify-between px-5 pb-7 pt-2 transition-opacity duration-200 ${(isAddModalOpen || isMilestoneModalOpen) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
-        {/* Home */}
-        <motion.button
-          onClick={() => setCurrentView("home")}
-          whileTap={{ scale: 0.90 }}
-          transition={{ type: "spring", stiffness: 500, damping: 26 }}
-          className={`flex flex-col items-center gap-1 pt-1 transition-opacity duration-200 ${isPlusMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        >
-          <CalendarIcon
-            className={`w-[27px] h-[27px] transition-all duration-200 ${
-              currentView === "home" ? "text-dusty-rose" : "text-charcoal/25"
-            }`}
-            strokeWidth={currentView === "home" ? 2.0 : 1.5}
-          />
-          <span className={`text-[11px] font-bold tracking-wide transition-all duration-200 ${
-            currentView === "home" ? "text-dusty-rose" : "text-charcoal/30"
-          }`}>Home</span>
-          <div className="h-[5px] flex items-center justify-center">
-            <AnimatePresence>
-              {currentView === "home" && (
-                <motion.div
-                  layoutId="nav-dot"
-                  className="w-1 h-1 rounded-full bg-dusty-rose"
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                />
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.button>
+        {(() => {
+          const PURPLE = '#8B5CF6';
+          const isPeopleActive = currentView === 'people' || currentView === 'person-profile';
+          const isGiftsActive  = currentView === 'gifts' || currentView === 'ideas';
+          const isMeActive     = currentView === 'me' || currentView === 'settings';
+          const isHomeActive   = currentView === 'home';
 
-        {/* Plus / Cancel */}
-        <div className="relative -mt-3 flex flex-col items-center">
-          <motion.button
-            whileTap={{ scale: 0.90 }}
-            whileHover={{ scale: 1.05 }}
-            onClick={() => setIsPlusMenuOpen(v => !v)}
-            animate={{
-              background: isPlusMenuOpen
-                ? "linear-gradient(145deg, #C8C8C8 0%, #A8A8A8 50%, #909090 100%)"
-                : "linear-gradient(145deg, #D4989E 0%, #C07888 50%, #A86878 100%)",
-            }}
-            transition={{ type: "spring", stiffness: 460, damping: 20 }}
-            className="relative w-[76px] h-[76px] rounded-full flex items-center justify-center border-[4.5px] border-white/95"
-            style={{
-              boxShadow: isPlusMenuOpen
-                ? "0 6px 22px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10), inset 0 1.5px 0 rgba(255,255,255,0.28)"
-                : "0 6px 22px rgba(180,100,120,0.32), 0 2px 6px rgba(180,100,120,0.18), inset 0 1.5px 0 rgba(255,255,255,0.32)",
-            }}
-          >
-            <motion.div
-              animate={{ rotate: isPlusMenuOpen ? 405 : 0 }}
-              transition={{ type: "spring", stiffness: 220, damping: 22 }}
-              style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.15))" }}
+          const Item = ({
+            label, Icon, active, onClick,
+          }: { label: string; Icon: any; active: boolean; onClick: () => void }) => (
+            <motion.button
+              onClick={onClick}
+              whileTap={{ scale: 0.90 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+              className={`flex flex-col items-center gap-0.5 pt-1 w-14 transition-opacity duration-200 ${isPlusMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
             >
-              <Plus className="w-9 h-9 text-white" strokeWidth={2.0} />
-            </motion.div>
-          </motion.button>
-          <AnimatePresence>
-            {isPlusMenuOpen && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                className="absolute top-full mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-charcoal/35 pointer-events-none whitespace-nowrap"
-              >
-                Cancel
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
+              <Icon
+                className="w-[24px] h-[24px] transition-all duration-200"
+                strokeWidth={active ? 2.0 : 1.5}
+                style={{ color: active ? PURPLE : 'rgba(28,28,30,0.30)' }}
+              />
+              <span
+                className="text-[10px] font-bold tracking-wide transition-all duration-200"
+                style={{ color: active ? PURPLE : 'rgba(28,28,30,0.35)' }}
+              >{label}</span>
+              <div className="h-[5px] flex items-center justify-center">
+                <AnimatePresence>
+                  {active && (
+                    <motion.div
+                      layoutId="nav-dot"
+                      className="w-1 h-1 rounded-full"
+                      style={{ backgroundColor: PURPLE }}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.button>
+          );
 
-        {/* People */}
-        <motion.button
-          onClick={() => { setCurrentView("people"); setSelectedPersonId(null); }}
-          whileTap={{ scale: 0.90 }}
-          transition={{ type: "spring", stiffness: 500, damping: 26 }}
-          className={`flex flex-col items-center gap-1 pt-1 transition-opacity duration-200 ${isPlusMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        >
-          <Users
-            className={`w-[27px] h-[27px] transition-all duration-200 ${
-              currentView === "people" || currentView === "person-profile" || currentView === "ideas"
-                ? "text-dusty-rose" : "text-charcoal/25"
-            }`}
-            strokeWidth={currentView === "people" || currentView === "person-profile" || currentView === "ideas" ? 2.0 : 1.5}
-          />
-          <span className={`text-[11px] font-bold tracking-wide transition-all duration-200 ${
-            currentView === "people" || currentView === "person-profile" || currentView === "ideas"
-              ? "text-dusty-rose" : "text-charcoal/30"
-          }`}>People</span>
-          <div className="h-[5px] flex items-center justify-center">
-            <AnimatePresence>
-              {(currentView === "people" || currentView === "person-profile" || currentView === "ideas") && (
-                <motion.div
-                  layoutId="nav-dot"
-                  className="w-1 h-1 rounded-full bg-dusty-rose"
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                />
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.button>
+          return (
+            <>
+              <Item
+                label="Home"
+                Icon={CalendarIcon}
+                active={isHomeActive}
+                onClick={() => setCurrentView('home')}
+              />
+              <Item
+                label="People"
+                Icon={Users}
+                active={isPeopleActive}
+                onClick={() => { setCurrentView('people'); setSelectedPersonId(null); }}
+              />
+
+              {/* Plus / Cancel — center FAB */}
+              <div className="relative -mt-3 flex flex-col items-center">
+                <motion.button
+                  whileTap={{ scale: 0.90 }}
+                  whileHover={{ scale: 1.05 }}
+                  onClick={() => setIsPlusMenuOpen(v => !v)}
+                  animate={{
+                    background: isPlusMenuOpen
+                      ? 'linear-gradient(145deg, #C8C8C8 0%, #A8A8A8 50%, #909090 100%)'
+                      : 'linear-gradient(145deg, #C490D1 0%, #B070C0 50%, #9858B0 100%)',
+                  }}
+                  transition={{ type: 'spring', stiffness: 460, damping: 20 }}
+                  className="relative w-[64px] h-[64px] rounded-full flex items-center justify-center border-[4px] border-white/95"
+                  style={{
+                    boxShadow: isPlusMenuOpen
+                      ? '0 6px 22px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10), inset 0 1.5px 0 rgba(255,255,255,0.28)'
+                      : '0 8px 24px rgba(152,88,176,0.40), 0 2px 8px rgba(152,88,176,0.20), inset 0 1.5px 0 rgba(255,255,255,0.35)',
+                  }}
+                >
+                  <motion.div
+                    animate={{ rotate: isPlusMenuOpen ? 405 : 0 }}
+                    transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+                    style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.15))' }}
+                  >
+                    <Plus className="w-8 h-8 text-white" strokeWidth={2.2} />
+                  </motion.div>
+                </motion.button>
+                <AnimatePresence>
+                  {isPlusMenuOpen && (
+                    <motion.span
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute top-full mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-charcoal/35 pointer-events-none whitespace-nowrap"
+                    >Cancel</motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <Item
+                label="Gifts"
+                Icon={Gift}
+                active={isGiftsActive}
+                onClick={() => setCurrentView('gifts')}
+              />
+              <Item
+                label="Me"
+                Icon={UserCircle2}
+                active={isMeActive}
+                onClick={() => setCurrentView('me')}
+              />
+            </>
+          );
+        })()}
       </nav>
 
       {/* Modals */}

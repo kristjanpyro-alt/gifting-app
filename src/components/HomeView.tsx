@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, type RefObject } from 'react';
 import { motion } from 'motion/react';
-import { ChevronRight, ChevronLeft, CalendarDays, Sparkles } from 'lucide-react';
+import {
+  ChevronRight, ChevronLeft, CalendarDays,
+  Gift, Heart, GraduationCap, Cake, Home as HomeIcon, Baby, Ghost,
+} from 'lucide-react';
 import { Occasion, Person, IdeasOccasionFocus } from '../types';
 import {
   buildSystemOccasions,
@@ -99,6 +102,20 @@ function buildCalendarCells(year: number, monthIdx: number) {
   return cells;
 }
 
+function contextIconFor(type: string, isSystem: boolean) {
+  const t = (type || '').toLowerCase();
+  if (isSystem) return Gift;
+  if (t === 'birthday')     return Cake;
+  if (t === 'anniversary')  return Heart;
+  if (t === 'wedding')      return Heart;
+  if (t === 'engagement')   return Heart;
+  if (t === 'graduation')   return GraduationCap;
+  if (t === 'new baby')     return Baby;
+  if (t === 'housewarming') return HomeIcon;
+  if (t === 'halloween')    return Ghost;
+  return Gift;
+}
+
 function personalBadgeColor(type: string, themeColor: string): string {
   const t = (type || '').toLowerCase();
   if (t === 'birthday')     return '#8B5CF6';
@@ -150,60 +167,51 @@ function SpotlightCard({ occ, person, year, onClick, wobbleTick = 0 }: {
 
   const isPast = occ.daysRemaining < 0;
 
+  const CtxIcon = contextIconFor(occ.type, occ.isSystem === true);
+  const ctxColor = effectiveBadge.text;
+
   return (
     <div
       ref={rootRef}
       onClick={onClick}
-      className={`relative bg-white rounded-[28px] border border-outline-variant/10 shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)] py-3 px-4 transition-all mx-auto w-[92%] overflow-hidden ${
+      className={`glass-card relative rounded-[22px] py-2.5 px-3.5 transition-all mx-auto w-[92%] overflow-hidden ${
         onClick ? 'cursor-pointer active:scale-[0.98]' : ''
-      } ${isPast ? 'opacity-60' : ''}`}
+      } ${isPast ? 'opacity-65' : ''}`}
     >
-      {/* Past event overlay — subtle gray cross */}
       {isPast && (
-        <div className="absolute inset-0 pointer-events-none rounded-[28px] overflow-hidden">
-          <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <line x1="0" y1="0" x2="100%" y2="100%" stroke="rgba(0,0,0,0.06)" strokeWidth="1.5" />
-            <line x1="100%" y1="0" x2="0" y2="100%" stroke="rgba(0,0,0,0.06)" strokeWidth="1.5" />
-          </svg>
-          <div className="absolute top-2.5 right-3 bg-black/[0.06] rounded-full px-2 py-0.5">
-            <span className="text-[9px] font-black uppercase tracking-widest text-charcoal/40">Passed</span>
-          </div>
+        <div className="absolute top-2 right-3 bg-black/[0.08] rounded-full px-2 py-0.5 pointer-events-none">
+          <span className="text-[9px] font-black uppercase tracking-widest text-charcoal/45">Passed</span>
         </div>
       )}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Circular emoji tile */}
-        <div
-          className="w-[44px] h-[44px] rounded-full flex items-center justify-center text-[24px] flex-shrink-0 bg-white shadow-[0_4px_14px_rgba(0,0,0,0.09)]"
-        >
+        <div className="w-[40px] h-[40px] rounded-full flex items-center justify-center text-[22px] flex-shrink-0 bg-white shadow-[0_3px_10px_rgba(0,0,0,0.08)]">
           {person?.emoji || occ.emoji || '🎁'}
         </div>
 
         {/* Body */}
         <div className="flex-grow min-w-0">
-          <p className="text-[15px] font-bold text-charcoal tracking-tight leading-tight">
+          <p className="text-[14.5px] font-bold text-charcoal tracking-tight leading-tight truncate">
             {person ? person.name : occ.title}
           </p>
-
-          {/* Badge — flat colored text, no pill */}
           <span
-            className="text-[10px] font-black uppercase tracking-widest"
+            className="text-[9.5px] font-black uppercase tracking-widest"
             style={{ color: effectiveBadge.text }}
           >
             {effectiveBadge.label}
           </span>
-
-          <p className="text-[12px] text-on-surface-variant mt-0.5">{subtitle}</p>
+          <p className="text-[11.5px] text-charcoal/55 leading-tight mt-0.5 truncate">
+            {dateLabel} <span className="text-charcoal/30">•</span>{' '}
+            <span style={{ color: daysColor }} className="font-semibold">{daysText}</span>
+          </p>
         </div>
 
-        {/* Date — no pill, just icon + stacked text */}
-        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-          <div className="flex items-center gap-1">
-            <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" style={{ color: daysColor }} />
-            <span className="text-[13px] font-bold text-charcoal">{dateLabel}</span>
-          </div>
-          <span className="text-[11px] font-bold" style={{ color: daysColor }}>
-            {daysText}
-          </span>
+        {/* Right-side context icon — tappable hint */}
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-white/70"
+          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
+        >
+          <CtxIcon className="w-4 h-4" strokeWidth={1.8} style={{ color: ctxColor }} />
         </div>
       </div>
     </div>
@@ -399,22 +407,40 @@ export default function HomeView({
   const laterStripVisible         = showAll ? linkedLaterStrip   : linkedLaterStrip.slice(0, 6);
   const unlinkedLaterStripVisible = showAll ? unlinkedLaterStrip : unlinkedLaterStrip.slice(0, 4);
 
+  function devResetOnboarding() {
+    if (!confirm('Reset onboarding + wipe local data?')) return;
+    localStorage.clear();
+    location.reload();
+  }
+
   return (
     <div className="pt-6 px-5 max-w-lg mx-auto pb-32 animate-in fade-in duration-500 relative">
 
+      {/* DEV: reset onboarding */}
+      {import.meta.env.DEV && (
+        <button
+          onClick={devResetOnboarding}
+          className="fixed top-3 left-3 z-[90] text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/70 text-white/90 hover:bg-black active:scale-95 transition"
+        >
+          ↻ Onboarding
+        </button>
+      )}
+
       {/* ── Greeting ── */}
-      <header className="mb-6 px-1">
-        <h1 className="text-[30px] font-bold tracking-tight text-charcoal flex items-center gap-2.5">
-          <Sparkles className="w-6 h-6 text-primary flex-shrink-0" strokeWidth={1.5} />
+      <header className="mb-5 px-1">
+        <h1 className="text-[24px] font-bold tracking-tight text-charcoal">
           {greeting()}
         </h1>
-        <p className="text-[13px] text-on-surface-variant mt-0.5 font-medium">
-          Here's what's coming up 💗
+        <p className="text-[13px] text-charcoal/60 mt-1 font-medium">
+          Here's what's coming up
         </p>
       </header>
 
       {/* ── Calendar ── */}
-      <section className="bg-white rounded-[28px] border border-outline-variant/10 shadow-[0_4px_24px_rgba(196,32,64,0.08),0_1px_6px_rgba(0,0,0,0.04)] mb-6 overflow-hidden">
+      <section
+        className="glass-card rounded-[28px] mb-5 overflow-hidden"
+        style={{ background: 'rgba(255,255,255,0.82)' }}
+      >
         {/* Month nav */}
         <div className="flex items-center justify-between px-5 py-4">
           <button onClick={onPrevMonth}
@@ -461,7 +487,7 @@ export default function HomeView({
             return (
               <div key={idx} className="h-10 flex items-center justify-center relative">
                 {isToday && (
-                  <div className="absolute w-8 h-8 rounded-full bg-primary/25 shadow-[0_0_14px_rgba(196,32,64,0.45)]" />
+                  <div className="absolute w-8 h-8 rounded-full bg-[#8B5CF6]/25 shadow-[0_0_14px_rgba(139,92,246,0.50)]" />
                 )}
                 <span
                   className="relative z-10 text-[13px] select-none"
@@ -484,7 +510,7 @@ export default function HomeView({
         </div>
 
         {/* Legend */}
-        <div className="flex items-center justify-center gap-5 px-4 py-3 border-t border-outline-variant/10">
+        <div className="flex items-center justify-center gap-5 px-4 py-3 border-t border-white/40">
           {LEGEND.map(l => (
             <div key={l.label} className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: l.color }} />
@@ -495,17 +521,22 @@ export default function HomeView({
       </section>
 
       {/* ── Upcoming header ── */}
-      <div className="flex items-center justify-between mb-4 px-1">
+      <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-primary" />
-          <p className="text-[15px] font-bold text-charcoal">Upcoming</p>
+          <div className="w-2 h-2 rounded-full bg-[#8B5CF6]" />
+          <p className="text-[15px] font-bold text-charcoal">
+            Upcoming{' '}
+            <span className="text-charcoal/40 font-semibold">
+              ({(spotlight ? 1 : 0) + restEvents.length + linkedLaterStrip.length})
+            </span>
+          </p>
         </div>
-        {linkedLaterStrip.length > 6 && (
+        {((spotlight ? 1 : 0) + restEvents.length + linkedLaterStrip.length) > 3 && (
           <button
             onClick={() => setShowAll(p => !p)}
-            className="flex items-center gap-1 text-[12px] font-semibold text-primary cursor-pointer hover:opacity-70 transition-opacity"
+            className="flex items-center gap-1 text-[12px] font-semibold text-[#8B5CF6] cursor-pointer hover:opacity-70 transition-opacity"
           >
-            {showAll ? 'Show less' : 'View all'}
+            {showAll ? 'Show less' : 'See all'}
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         )}
@@ -545,10 +576,10 @@ export default function HomeView({
           ))}
         </div>
       ) : (
-        <div className="relative bg-white rounded-[28px] border border-outline-variant/10 shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)] py-3 px-4 mx-auto w-[92%] mb-4">
+        <div className="glass-card relative rounded-[24px] py-3 px-4 mx-auto w-[92%] mb-4">
           <div className="flex items-center gap-4">
-            <div className="w-[44px] h-[44px] rounded-full flex items-center justify-center flex-shrink-0 bg-surface-dim">
-              <CalendarDays className="w-5 h-5 text-charcoal/30" strokeWidth={1.5} />
+            <div className="w-[44px] h-[44px] rounded-full flex items-center justify-center flex-shrink-0 bg-white/60">
+              <CalendarDays className="w-5 h-5 text-charcoal/40" strokeWidth={1.5} />
             </div>
             <div className="flex-grow min-w-0">
               <p className="text-[15px] font-bold text-charcoal tracking-tight leading-tight">All clear</p>
@@ -564,7 +595,7 @@ export default function HomeView({
           <p className="text-[11px] font-bold uppercase tracking-widest text-charcoal/50 mb-2.5 px-1">
             Coming later
           </p>
-          <div className="bg-white rounded-[24px] border border-outline-variant/10 shadow-[0_4px_20px_rgba(196,32,64,0.07),0_1px_5px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="glass-card rounded-[24px] overflow-hidden">
             <div className="flex items-center gap-7 px-5 pt-7 pb-4 overflow-x-auto no-scrollbar">
               {laterStripVisible.map(({ occ, yr }) => {
                 const person = people.find(p => p.id === occ.personId);

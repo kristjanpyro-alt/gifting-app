@@ -83,6 +83,45 @@ function occasionContextBlock(occasionType: string | undefined): string {
   return '';
 }
 
+/** Build a prelude that captures the giver's global gifting profile (set during onboarding). */
+function userProfileBlock(): string {
+  const profile = StorageService.getUserProfile();
+  if (!profile) return '';
+  const parts: string[] = [];
+  if (profile.archetype) {
+    parts.push(`Giver archetype: ${profile.archetype}`);
+  }
+  if (profile.intent) {
+    const intentCopy: Record<string, string> = {
+      'forgetful':       'Giver self-identifies as forgetting dates. Lean into reliability/calm tone in rationales.',
+      'never-know':      'Giver feels unsure what to buy. Make rationales explanatory and grounding.',
+      'feel-generic':    'Giver fears generic gifts. Lean toward unexpected niches over safe choices.',
+      'last-minute':     'Giver shops late. Favor fast-ship or instant-delivery options in 2+ of the 5 ideas.',
+      'more-thoughtful': 'Giver wants gifts to feel earned. Lean meaningful over flashy.',
+    };
+    const copy = intentCopy[profile.intent];
+    if (copy) parts.push(copy);
+  }
+  if (profile.vibes && profile.vibes.length > 0) {
+    parts.push(`Giver's global vibe preferences: ${profile.vibes.join(', ')}. These are STYLE FILTERS — at least 3 of 5 ideas should align with at least one of these vibes.`);
+  }
+  if (profile.budgetBand) {
+    const budgetCopy: Record<string, string> = {
+      'under-25':   'Default comfort budget: under $25.',
+      '25-50':      'Default comfort budget: $25–50.',
+      '50-100':     'Default comfort budget: $50–100.',
+      '100-plus':   'Default comfort budget: $100+.',
+      'depends':    'Budget varies by recipient. Respect the recipient-level budget below.',
+    };
+    parts.push(budgetCopy[profile.budgetBand] || '');
+  }
+  if (parts.length === 0) return '';
+  return `
+    [GIVER PROFILE — SET DURING ONBOARDING]
+    ${parts.filter(Boolean).join('\n    ')}
+  `;
+}
+
 export async function curateGiftIdeas(
   person: Person,
   nextOccasion: Occasion | undefined,
@@ -194,6 +233,7 @@ ${crossOccasionList}
   const systemInstruction = `
     You are an expert gift curator for an app called GIFTIN.
     Your goal is to provide highly personalized, thoughtful, and creative gift ideas.
+    ${userProfileBlock()}
     ${occasionContextBlock(nextOccasion?.type)}
     [DIVERSITY FIRST]
     Default to BREADTH over safety. The giver has likely already considered the obvious choices for this person's interests. Your job is to surface fresh angles — adjacent niches, unexpected categories, ideas they would not find by Googling "${person.relation} gift ideas". Five suggestions = five distinct lanes (no two from the same micro-category, e.g. don't return two candles or two skincare items).

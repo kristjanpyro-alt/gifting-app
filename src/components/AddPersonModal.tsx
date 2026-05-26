@@ -87,7 +87,7 @@ export default function AddPersonModal({
   const colorPickerRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
-  const [relation, setRelation] = useState("Partner / Spouse");
+  const [relation, setRelation] = useState("Partner");
   const [interests, setInterests] = useState("");
   const [budget, setBudget] = useState("€25-50");
   const [birthday, setBirthday] = useState("");
@@ -106,12 +106,12 @@ export default function AddPersonModal({
   const [birthdayError, setBirthdayError] = useState(false);
   const [isRelationPickerOpen, setIsRelationPickerOpen] = useState(false);
 
-  const SINGLETON_RELATIONS = new Set(['Partner / Spouse', 'Mother', 'Father']);
+  const SINGLETON_RELATIONS = new Set(['Partner', 'Mother', 'Father']);
   const isSingletonRelation = (rel: string) =>
     isPartnerRelation(rel) || SINGLETON_RELATIONS.has(rel);
   const hasSingletonAlready = (rel: string) =>
     isSingletonRelation(rel) && people.some((p) => p.relation === rel || (isPartnerRelation(rel) && isPartnerRelation(p.relation)));
-  const hasPartnerAlready = hasSingletonAlready('Partner / Spouse');
+  const hasPartnerAlready = hasSingletonAlready('Partner');
 
   const relationMeta = (rel: string) => {
     const r = rel.toLowerCase();
@@ -135,7 +135,7 @@ export default function AddPersonModal({
         setRelation(initialRelationHint);
       }
     } else {
-      setRelation(hasPartnerAlready ? "Friend" : "Partner / Spouse");
+      setRelation(hasPartnerAlready ? "Friend" : "Partner");
     }
     if (initialPresetOccasionKeys?.length) {
       const valid = initialPresetOccasionKeys.filter((k) => k in PRESET_OCCASIONS);
@@ -158,7 +158,7 @@ export default function AddPersonModal({
 
   const reset = () => {
     setWizardStep(1);
-    setName(""); setRelation("Partner / Spouse"); setInterests("");
+    setName(""); setRelation("Partner"); setInterests("");
     setBudget("€25-50"); setBirthday(""); setAnniversaryDate("");
     setPreferences("Either"); setNotes(""); setLocation("");
     setStyle("Thoughtful"); setGiftingFear(""); setPastAndAvoid("");
@@ -363,7 +363,7 @@ export default function AddPersonModal({
                           <ChevronDown className="w-4 h-4 text-charcoal/35 flex-shrink-0" />
                         </button>
                       </div>
-                      {(hasSingletonAlready('Partner / Spouse') ||
+                      {(hasSingletonAlready('Partner') ||
                         hasSingletonAlready('Mother') ||
                         hasSingletonAlready('Father')) && (
                         <p className="text-[11px] text-charcoal/40 mt-2 px-1">
